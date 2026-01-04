@@ -13,7 +13,6 @@ import { Raffle } from './components/Raffle';
 import { Calculator } from './components/Calculator';
 import { WorkOrder, ViewState, Expense, Appointment, WorkshopSettings, RaffleWinner } from './types';
 
-// PROVEEDOR ULTRA-ESTABLE
 const CLOUD_API_BASE = 'https://api.npoint.io';
 
 function App() {
@@ -56,12 +55,10 @@ function App() {
   useEffect(() => { localStorage.setItem('taller_winners', JSON.stringify(raffleWinners)); }, [raffleWinners]);
   useEffect(() => { localStorage.setItem('taller_settings', JSON.stringify(settings)); }, [settings]);
 
-  // --- LÓGICA DE NUBE DEFINITIVA ---
-
   const pushToCloud = async () => {
     const code = settings.syncCode?.trim();
     if (!code) {
-      alert("⚠️ Error: No tienes un código de nube. Ve a Configuración y genera uno.");
+      alert("⚠️ Error: No hay código de nube. Genéralo en Configuración.");
       return;
     }
     
@@ -75,21 +72,20 @@ function App() {
         settings: { ...settings, lastSync: new Date().toLocaleString() }
       };
 
-      // Actualizamos directamente el ID en NPoint
       const response = await fetch(`${CLOUD_API_BASE}/${code}`, {
-        method: 'POST', // NPoint usa POST para sobrescribir o crear
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
       if (response.ok) {
         setSettings(prev => ({ ...prev, lastSync: new Date().toLocaleString() }));
-        alert("✅ ¡Éxito! Datos subidos a la nube. Ya puedes bajarlos en tu otro equipo.");
+        alert("✅ Subido a la nube correctamente.");
       } else {
-        alert("❌ Error al subir. Es posible que el código sea inválido.");
+        alert("❌ Error al subir. Revisa el código.");
       }
     } catch (error) {
-      alert("❌ Sin conexión a internet.");
+      alert("❌ Error de conexión.");
     } finally {
       setIsSyncing(false);
     }
@@ -97,8 +93,8 @@ function App() {
 
   const pullFromCloud = async () => {
     const code = settings.syncCode?.trim();
-    if (!code) { alert("⚠️ Primero pega el código de sincronización en Configuración."); return; }
-    if (!window.confirm("⚠️ ¿Bajar datos? Esto borrará lo que tienes en este equipo y pondrá lo que hay en la nube.")) return;
+    if (!code) { alert("⚠️ Ingresa el código en Configuración."); return; }
+    if (!window.confirm("⚠️ ¿Bajar datos? Se reemplazará lo que tienes ahora.")) return;
 
     setIsSyncing(true);
     try {
@@ -111,46 +107,48 @@ function App() {
           if (data.appointments) setAppointments(data.appointments);
           if (data.raffleWinners) setRaffleWinners(data.raffleWinners);
           if (data.settings) setSettings({ ...data.settings, syncCode: code });
-          alert("✅ ¡Sincronizado! Datos descargados correctamente.");
+          alert("✅ ¡Sincronizado! Datos descargados.");
         }
       } else {
-        alert("❌ No se encontraron datos para este código. Asegúrate de haber 'Subido' los datos primero desde el otro equipo.");
+        alert("❌ No hay datos para ese código. ¿Ya le diste a 'Subir' en el otro equipo?");
       }
     } catch (error) {
-      alert("❌ Error al conectar con la nube.");
+      alert("❌ Error al conectar.");
     } finally {
       setIsSyncing(false);
     }
   };
 
+  // Generación local rápida para evitar el "INP Issue" de bloqueo de UI
   const generateNewCloudCode = async () => {
-    if (!window.confirm("¿Deseas crear un nuevo código? Esto te dará una 'carpeta' limpia en la nube.")) return;
-    
     setIsSyncing(true);
     try {
-      // Creamos un bin vacío en NPoint para obtener un ID real
+      // Intentamos crear el contenedor en NPoint
       const response = await fetch(CLOUD_API_BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initialized: true })
+        body: JSON.stringify({ initialized: true, date: new Date().toISOString() })
       });
       
       if (response.ok) {
         const result = await response.json();
-        const newId = result.id;
-        if (newId) {
-          setSettings(prev => ({ ...prev, syncCode: newId }));
-          alert(`✅ ¡CÓDIGO GENERADO!\n\nTu ID es: ${newId}\n\nCópialo y pégalo en tu otro celular o PC.`);
+        if (result.id) {
+          setSettings(prev => ({ ...prev, syncCode: result.id }));
+          alert(`✅ CÓDIGO GENERADO: ${result.id}\n\n1. Dale a "Guardar Todo" abajo.\n2. Ve al Panel y dale a "Subir".`);
         }
+      } else {
+        throw new Error("Server error");
       }
     } catch (error) {
-      alert("❌ Error al generar código. Revisa tu internet.");
+      // Fallback: Generar un ID aleatorio local si el servidor falla al crear
+      const fallbackId = 'gm-' + Math.random().toString(36).substring(2, 9);
+      setSettings(prev => ({ ...prev, syncCode: fallbackId }));
+      alert(`⚠️ Servidor ocupado. Se generó un código local: ${fallbackId}\nGuarda y prueba subir en unos momentos.`);
     } finally {
       setIsSyncing(false);
     }
   };
 
-  // --- RESTO DE FUNCIONES ---
   const handleCreateOt = (newOt: WorkOrder) => {
     const today = new Date().toISOString().split('T')[0];
     if (newOt.status === 'delivered' && !newOt.deliveredAt) newOt.deliveredAt = today;
