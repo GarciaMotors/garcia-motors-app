@@ -13,7 +13,7 @@ import { Raffle } from './components/Raffle';
 import { Calculator } from './components/Calculator';
 import { WorkOrder, ViewState, Expense, Appointment, WorkshopSettings, RaffleWinner } from './types';
 
-// Proveedor de nube alternativo muy estable para aplicaciones frontend
+// Proveedor de nube alternativo muy estable
 const CLOUD_API = 'https://api.restful-api.dev/objects';
 
 function App() {
@@ -65,7 +65,6 @@ function App() {
       alert("Genera un código en Configuración primero.");
       return;
     }
-    
     setIsSyncing(true);
     try {
       const payload = {
@@ -78,21 +77,19 @@ function App() {
           settings: { ...settings, lastSync: new Date().toLocaleString() }
         }
       };
-
       const response = await fetch(`${CLOUD_API}/${settings.syncCode}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-
       if (response.ok) {
         setSettings(prev => ({ ...prev, lastSync: new Date().toLocaleString() }));
         alert("¡Datos subidos a la nube exitosamente!");
       } else {
-        throw new Error("Error en servidor");
+        throw new Error();
       }
     } catch (error) {
-      alert("Error al subir datos. Intente nuevamente en unos segundos.");
+      alert("Error al subir datos. Intente nuevamente.");
     } finally {
       setIsSyncing(false);
     }
@@ -103,9 +100,7 @@ function App() {
       alert("Ingrese su código de sincronización.");
       return;
     }
-
-    if (!window.confirm("¿Desea descargar los datos de la nube? Esto borrará lo que tenga actualmente en este equipo.")) return;
-
+    if (!window.confirm("¿Descargar datos? Se borrará lo actual en este equipo.")) return;
     setIsSyncing(true);
     try {
       const response = await fetch(`${CLOUD_API}/${settings.syncCode}`);
@@ -121,7 +116,7 @@ function App() {
           alert("¡Datos descargados con éxito!");
         }
       } else {
-        alert("El código ingresado no existe o no tiene datos.");
+        alert("Código no válido.");
       }
     } catch (error) {
       alert("Error al conectar con la nube.");
@@ -137,26 +132,23 @@ function App() {
         name: "GM_SYNC_INITIAL",
         data: { orders: [], expenses: [], appointments: [], raffleWinners: [], settings }
       };
-
       const response = await fetch(CLOUD_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      
       if (response.ok) {
         const result = await response.json();
-        const newCode = result.id; // Obtenemos el ID directamente del cuerpo de la respuesta
+        const newCode = result.id;
         if (newCode) {
           setSettings(prev => ({ ...prev, syncCode: newCode }));
-          alert(`¡Código Nuevo Generado! Úsalo para conectar tus dispositivos: ${newCode}`);
+          alert(`¡Código Nuevo: ${newCode}`);
         }
       } else {
-        throw new Error("No se pudo crear el objeto");
+        throw new Error();
       }
     } catch (error) {
-      console.error(error);
-      alert("Error de conexión con la nube. Por favor, asegúrese de tener internet e intente de nuevo.");
+      alert("Error de conexión. Intente de nuevo.");
     } finally {
       setIsSyncing(false);
     }
@@ -165,21 +157,17 @@ function App() {
   const handleCreateOt = (newOt: WorkOrder) => {
     const today = new Date().toISOString().split('T')[0];
     if (newOt.status === 'delivered' && !newOt.deliveredAt) newOt.deliveredAt = today;
-    
     let updatedOrders: WorkOrder[];
     const exists = orders.find(o => o.id === newOt.id);
     if (exists) updatedOrders = orders.map(o => o.id === newOt.id ? newOt : o);
     else updatedOrders = [newOt, ...orders];
-    
     setOrders(updatedOrders);
     setView('list');
     setSelectedOrderId(null);
   };
 
   const handleDeleteOt = (id: string) => {
-    if (window.confirm('¿Eliminar esta OT?')) {
-        setOrders(orders.filter(o => o.id !== id));
-    }
+    if (window.confirm('¿Eliminar esta OT?')) setOrders(orders.filter(o => o.id !== id));
   };
 
   const handleEditOt = (id: string) => {
@@ -193,32 +181,27 @@ function App() {
   };
 
   const handleToggleOtItemReimbursement = (otId: string, itemId: string) => {
-      const today = new Date().toISOString().split('T')[0];
-      setOrders(orders.map(o => {
-          if (o.id !== otId) return o;
-          return {
-              ...o,
-              items: o.items.map(i => {
-                  if (i.id !== itemId) return i;
-                  const newStatus = !i.isReimbursed;
-                  return { ...i, isReimbursed: newStatus, reimbursementDate: newStatus ? today : i.reimbursementDate };
-              })
-          };
-      }));
+    const today = new Date().toISOString().split('T')[0];
+    setOrders(orders.map(o => o.id !== otId ? o : {
+      ...o,
+      items: o.items.map(i => i.id !== itemId ? i : { 
+        ...i, isReimbursed: !i.isReimbursed, reimbursementDate: !i.isReimbursed ? today : i.reimbursementDate 
+      })
+    }));
   };
 
   const handleDismissMaintenance = (otId: string) => {
-      if(window.confirm("¿Confirmas que ya contactaste al cliente?")) {
-          setOrders(orders.map(o => o.id === otId ? { ...o, maintenanceAlertDismissed: true } : o));
-      }
+    if(window.confirm("¿Confirmas contacto?")) {
+      setOrders(orders.map(o => o.id === otId ? { ...o, maintenanceAlertDismissed: true } : o));
+    }
   };
 
   const handleAddExpense = (newExp: Expense) => setExpenses([...expenses, newExp]);
   const handleEditExpense = (updExp: Expense) => setExpenses(expenses.map(e => e.id === updExp.id ? updExp : e));
   const handleDeleteExpense = (id: string) => window.confirm('¿Eliminar?') && setExpenses(expenses.filter(e => e.id !== id));
   const handleToggleExpensePaid = (id: string) => {
-      const today = new Date().toISOString().split('T')[0];
-      setExpenses(expenses.map(e => e.id === id ? { ...e, isPaid: !e.isPaid, paymentDate: !e.isPaid ? today : e.paymentDate } : e));
+    const today = new Date().toISOString().split('T')[0];
+    setExpenses(expenses.map(e => e.id !== id ? e : { ...e, isPaid: !e.isPaid, paymentDate: !e.isPaid ? today : e.paymentDate }));
   };
 
   const handleAddAppointment = (apt: Appointment) => setAppointments(prev => [...prev, apt]);
@@ -227,24 +210,24 @@ function App() {
 
   const handleRegisterWinner = (winner: RaffleWinner) => setRaffleWinners(prev => [winner, ...prev]);
   const handleUpdateWinnerStatus = (id: string, isRedeemed: boolean) => {
-      setRaffleWinners(prev => prev.map(w => w.id === id ? { ...w, isRedeemed, redemptionDate: isRedeemed ? new Date().toISOString().split('T')[0] : undefined } : w));
+    setRaffleWinners(prev => prev.map(w => w.id === id ? { ...w, isRedeemed, redemptionDate: isRedeemed ? new Date().toISOString().split('T')[0] : undefined } : w));
   };
   const handleDeleteWinner = (id: string) => window.confirm("¿Borrar?") && setRaffleWinners(prev => prev.filter(w => w.id !== id));
 
   const handleRestoreData = (file: File) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-          try {
-              const data = JSON.parse(e.target?.result as string);
-              if (data.orders) setOrders(data.orders);
-              if (data.expenses) setExpenses(data.expenses);
-              if (data.appointments) setAppointments(data.appointments);
-              if (data.winners) setRaffleWinners(data.winners);
-              if (data.settings) setSettings(data.settings);
-              alert('Base de datos restaurada.');
-          } catch (e) { alert('Error al leer el archivo.'); }
-      };
-      reader.readAsText(file);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        if (data.orders) setOrders(data.orders);
+        if (data.expenses) setExpenses(data.expenses);
+        if (data.appointments) setAppointments(data.appointments);
+        if (data.winners) setRaffleWinners(data.winners);
+        if (data.settings) setSettings(data.settings);
+        alert('Base de datos restaurada.');
+      } catch (e) { alert('Error al leer el archivo.'); }
+    };
+    reader.readAsText(file);
   };
 
   const getSelectedOrder = () => orders.find(o => o.id === selectedOrderId);
@@ -255,4 +238,22 @@ function App() {
         <Dashboard 
             orders={orders} expenses={expenses} appointments={appointments} settings={settings}
             onViewOt={handleViewOt} onToggleOtReimbursement={handleToggleOtItemReimbursement}
-            onToggleExpensePaid={handleToggleExpensePaid} onDismissMaintenance={handleDismiss
+            onToggleExpensePaid={handleToggleExpensePaid} onDismissMaintenance={handleDismissMaintenance}
+            onRestore={handleRestoreData}
+            onPushCloud={pushToCloud} onPullCloud={pullFromCloud} isSyncing={isSyncing}
+        />
+      )}
+      {view === 'expenses' && <ExpenseList expenses={expenses} orders={orders} onAdd={handleAddExpense} onEdit={handleEditExpense} onDelete={handleDeleteExpense} />}
+      {view === 'parts' && <PartsList orders={orders} />}
+      {view === 'agenda' && <Agenda appointments={appointments} onAdd={handleAddAppointment} onUpdate={handleUpdateAppointment} onDelete={handleDeleteAppointment} />}
+      {view === 'raffle' && <Raffle orders={orders} winnersHistory={raffleWinners} onRegisterWinner={handleRegisterWinner} onUpdateWinnerStatus={handleUpdateWinnerStatus} onDeleteWinner={handleDeleteWinner} />}
+      {view === 'calculator' && <Calculator />}
+      {view === 'settings' && <Settings settings={settings} onSave={setSettings} onGenerateCode={generateNewCloudCode} isSyncing={isSyncing} />}
+      {view === 'create' && <OtForm initialData={getSelectedOrder()} existingOrders={orders} existingExpenses={expenses} onSave={handleCreateOt} onCancel={() => { setView('list'); setSelectedOrderId(null); }} />}
+      {view === 'details' && getSelectedOrder() && <OtDetail ot={getSelectedOrder()!} settings={settings} onBack={() => { setView('list'); setSelectedOrderId(null); }} />}
+      {view === 'list' && <OtList orders={orders} onView={handleViewOt} onEdit={handleEditOt} onDelete={handleDeleteOt} />}
+    </Layout>
+  );
+}
+
+export default App;
