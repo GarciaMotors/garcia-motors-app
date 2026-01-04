@@ -13,7 +13,7 @@ import { Raffle } from './components/Raffle';
 import { Calculator } from './components/Calculator';
 import { WorkOrder, ViewState, Expense, Appointment, WorkshopSettings, RaffleWinner } from './types';
 
-// PROVEEDOR PROFESIONAL (Sin límites estrictos de saturación)
+// PROVEEDOR PROFESIONAL (Soporta nombres personalizados)
 const CLOUD_API_BASE = 'https://api.restful-api.dev/objects';
 
 function App() {
@@ -56,67 +56,100 @@ function App() {
   useEffect(() => { localStorage.setItem('taller_winners', JSON.stringify(raffleWinners)); }, [raffleWinners]);
   useEffect(() => { localStorage.setItem('taller_settings', JSON.stringify(settings)); }, [settings]);
 
-  // --- LÓGICA DE NUBE CORREGIDA ---
+  // --- LÓGICA DE NUBE REFORZADA ---
+
+  // Función para buscar el ID interno de un código (ej: Garcia2024)
+  const findCloudId = async (code: string) => {
+    try {
+      const response = await fetch(CLOUD_API_BASE);
+      if (!response.ok) return null;
+      const objects = await response.json();
+      // Buscamos un objeto que tenga el nombre que el usuario eligió
+      const match = objects.find((obj: any) => obj.name === `GM_DATA_${code}`);
+      return match ? match.id : null;
+    } catch (e) { return null; }
+  };
 
   const pushToCloud = async () => {
-    if (!settings.syncCode || settings.syncCode.length < 4) {
-      alert("⚠️ Escribe un código de al menos 4 letras en Configuración.");
+    const code = settings.syncCode?.trim();
+    if (!code || code.length < 4) {
+      alert("⚠️ Escribe un código de al menos 4 letras en Configuración (ej: Garcia2024).");
       return;
     }
+    
     setIsSyncing(true);
     try {
-      // Intentamos primero con PUT (Actualizar)
       const payload = {
-        name: `GM_DATA_${settings.syncCode}`,
-        data: { orders, expenses, appointments, raffleWinners, settings: { ...settings, lastSync: new Date().toLocaleString() } }
+        name: `GM_DATA_${code}`,
+        data: {
+          orders,
+          expenses,
+          appointments,
+          raffleWinners,
+          settings: { ...settings, lastSync: new Date().toLocaleString() }
+        }
       };
 
-      // Usamos el ID del código directamente para buscar el objeto
-      const response = await fetch(`${CLOUD_API_BASE}/ff8081819323316601934994784429f5`, { // ID de prueba o mapeo
-        method: 'POST', // En este API, POST crea un objeto nuevo y nos da un ID
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: settings.syncCode, data: payload.data })
-      });
+      const existingId = await findCloudId(code);
+      let response;
+
+      if (existingId) {
+        // Si ya existe, actualizamos ese ID
+        response = await fetch(`${CLOUD_API_BASE}/${existingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        // Si es nuevo, lo creamos
+        response = await fetch(CLOUD_API_BASE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
 
       if (response.ok) {
         setSettings(prev => ({ ...prev, lastSync: new Date().toLocaleString() }));
-        alert("✅ Datos subidos a la nube con éxito.");
+        alert("✅ Datos guardados en la nube con éxito.");
       } else {
-        throw new Error("Saturado");
+        throw new Error("Error en servidor");
       }
     } catch (error) {
-      alert("❌ Error de conexión. Intenta de nuevo en unos segundos.");
+      alert("❌ Error de conexión. Revisa tu internet o intenta más tarde.");
     } finally {
       setIsSyncing(false);
     }
   };
 
   const pullFromCloud = async () => {
-    if (!settings.syncCode) { alert("⚠️ Escribe tu código en Configuración."); return; }
-    if (!window.confirm("⚠️ ¿Descargar datos? Se borrará lo que tienes ahora en este equipo.")) return;
+    const code = settings.syncCode?.trim();
+    if (!code) { alert("⚠️ Escribe tu código en Configuración."); return; }
+    if (!window.confirm("⚠️ ¿Bajar datos? Se borrará lo que tienes en este equipo para poner lo de la nube.")) return;
 
     setIsSyncing(true);
     try {
-      // Buscamos todos los objetos y filtramos por el nombre (nuestro código)
-      const response = await fetch(CLOUD_API_BASE);
+      const existingId = await findCloudId(code);
+      if (!existingId) {
+        alert("❌ No hay datos en la nube con ese código. Primero dale a 'Subir' desde el equipo que tiene la información.");
+        return;
+      }
+
+      const response = await fetch(`${CLOUD_API_BASE}/${existingId}`);
       if (response.ok) {
-        const allObjects = await response.json();
-        const myData = allObjects.find((obj: any) => obj.name === settings.syncCode);
-        
-        if (myData && myData.data) {
-          const cloud = myData.data;
+        const result = await response.json();
+        const cloud = result.data;
+        if (cloud) {
           if (cloud.orders) setOrders(cloud.orders);
           if (cloud.expenses) setExpenses(cloud.expenses);
           if (cloud.appointments) setAppointments(cloud.appointments);
           if (cloud.raffleWinners) setRaffleWinners(cloud.raffleWinners);
-          if (cloud.settings) setSettings({ ...cloud.settings, syncCode: settings.syncCode });
-          alert("✅ ¡Sincronizado! Datos descargados con éxito.");
-        } else {
-          alert("❌ No hay datos en la nube con ese código. Primero dale a 'Subir' desde el otro equipo.");
+          if (cloud.settings) setSettings({ ...cloud.settings, syncCode: code });
+          alert("✅ ¡Sincronizado! Datos descargados correctamente.");
         }
       }
     } catch (error) {
-      alert("❌ Error al conectar. Revisa tu internet.");
+      alert("❌ Error al descargar. Revisa tu conexión.");
     } finally {
       setIsSyncing(false);
     }
@@ -125,10 +158,10 @@ function App() {
   const generateNewCloudCode = () => {
     const randomCode = 'GM-' + Math.random().toString(36).substring(2, 7).toUpperCase();
     setSettings(prev => ({ ...prev, syncCode: randomCode }));
-    alert(`✅ Nuevo código generado: ${randomCode}\n\nEscríbelo tal cual en tu otro equipo para conectar.`);
+    alert(`✅ Código generado: ${randomCode}\n\nEscríbelo en tu otro equipo para conectar.`);
   };
 
-  // --- RESTO DE FUNCIONES ---
+  // --- RESTO DE FUNCIONES (SIN CAMBIOS) ---
   const handleCreateOt = (newOt: WorkOrder) => {
     const today = new Date().toISOString().split('T')[0];
     if (newOt.status === 'delivered' && !newOt.deliveredAt) newOt.deliveredAt = today;
@@ -177,8 +210,8 @@ function App() {
         if (data.appointments) setAppointments(data.appointments);
         if (data.winners) setRaffleWinners(data.winners);
         if (data.settings) setSettings(data.settings);
-        alert('✅ Restaurado.');
-      } catch (e) { alert('❌ Error JSON.'); }
+        alert('✅ Restauración completa.');
+      } catch (e) { alert('❌ Error en el archivo JSON.'); }
     };
     reader.readAsText(file);
   };

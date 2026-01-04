@@ -35,7 +35,7 @@ export const Settings: React.FC<SettingsProps> = ({ settings, onSave, onGenerate
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
-    alert('✅ Configuración guardada en este equipo.');
+    alert('✅ Configuración guardada. Ya puedes ir al Panel a Subir/Bajar datos.');
   };
 
   return (
@@ -50,12 +50,12 @@ export const Settings: React.FC<SettingsProps> = ({ settings, onSave, onGenerate
         {/* NUBE CONFIG REFORZADA */}
         <div className="bg-white p-6 rounded-xl border-2 border-indigo-200 shadow-md">
            <h3 className="text-indigo-900 font-bold mb-4 flex items-center gap-2">
-              <Cloud className="w-5 h-5 text-indigo-600" /> Sincronización en la Nube
+              <Cloud className="w-5 h-5 text-indigo-600" /> Conectar con la Nube
            </h3>
            
            <div className="space-y-4">
               <div className="bg-indigo-50 p-4 rounded-lg">
-                  <label className="block text-sm font-bold text-indigo-800 mb-2">Tu Código de Sincronización</label>
+                  <label className="block text-sm font-bold text-indigo-800 mb-2">Código de Sincronización</label>
                   <div className="flex gap-2">
                       <div className="relative flex-1">
                           <Key className="absolute left-3 top-2.5 h-4 w-4 text-indigo-400" />
@@ -64,7 +64,7 @@ export const Settings: React.FC<SettingsProps> = ({ settings, onSave, onGenerate
                             name="syncCode"
                             value={formData.syncCode || ''}
                             onChange={handleChange}
-                            placeholder="Ej: GARCIA2024"
+                            placeholder="Ej: Garcia2024"
                             className="pl-9 w-full rounded-md border-indigo-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border bg-white font-mono font-bold"
                           />
                       </div>
@@ -76,54 +76,24 @@ export const Settings: React.FC<SettingsProps> = ({ settings, onSave, onGenerate
                       </button>
                   </div>
                   <p className="text-[11px] text-indigo-600 mt-2">
-                    💡 <strong>Para sincronizar:</strong> Escribe el MISMO código en tu computador y en tu celular, luego dale a "Conectar" en ambos.
+                    💡 <strong>Cómo funciona:</strong> Inventa un código (mínimo 4 letras) y dale a Conectar. Escribe el MISMO código en tu otro equipo para compartir los datos.
                   </p>
               </div>
 
-              <div className="flex items-center gap-2 text-gray-400 py-2">
+              <div className="flex items-center gap-2 text-gray-400 py-1">
                   <div className="flex-1 h-px bg-gray-200"></div>
-                  <span className="text-xs font-bold uppercase">ó genera uno nuevo</span>
+                  <span className="text-[10px] font-bold uppercase">o usa uno automático</span>
                   <div className="flex-1 h-px bg-gray-200"></div>
               </div>
 
               <button 
                 type="button"
                 onClick={onGenerateCode}
-                className="w-full bg-white text-indigo-600 border border-indigo-300 px-4 py-2 rounded-md font-bold text-sm flex items-center justify-center gap-2 hover:bg-indigo-50 transition"
+                className="w-full bg-white text-indigo-600 border border-indigo-200 px-4 py-2 rounded-md font-bold text-xs flex items-center justify-center gap-2 hover:bg-indigo-50 transition"
               >
-                <RefreshCw className="w-4 h-4" /> Crear Código Aleatorio
+                <RefreshCw className="w-3 h-3" /> Generar Código Aleatorio
               </button>
            </div>
-        </div>
-
-        {/* IPHONE HELP */}
-        <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 flex items-start gap-3">
-            <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-            <div className="text-sm text-blue-800">
-                <p className="font-bold mb-1">¿Cómo instalar en iPhone?</p>
-                <p>En Safari, toca el botón <strong>Compartir</strong> (cuadrado con flecha) y luego selecciona <strong>"Agregar a inicio"</strong>.</p>
-            </div>
-        </div>
-
-        {/* Logo Section */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <label className="block text-sm font-medium text-gray-700 mb-4">Logo del Taller (Para PDF)</label>
-          <div className="flex items-start gap-4">
-            <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden bg-gray-50 relative group">
-              {formData.logoUrl ? (
-                <>
-                  <img src={formData.logoUrl} alt="Logo" className="w-full h-full object-contain" />
-                  <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <button type="button" onClick={removeLogo} className="text-white hover:text-red-400"><Trash2 className="w-6 h-6" /></button>
-                  </div>
-                </>
-              ) : <ImageIcon className="w-8 h-8 text-gray-400" />}
-            </div>
-            <div className="flex-1">
-              <input type="file" ref={fileInputRef} onChange={handleLogoUpload} className="hidden" accept="image/*" />
-              <button type="button" onClick={() => fileInputRef.current?.click()} className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md flex items-center gap-2"><Upload className="w-4 h-4" /> Subir Logo</button>
-            </div>
-          </div>
         </div>
 
         {/* Basic Info */}
@@ -138,6 +108,27 @@ export const Settings: React.FC<SettingsProps> = ({ settings, onSave, onGenerate
           </div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label><input type="text" name="phone" value={formData.phone} onChange={handleChange} className="w-full rounded-md border-gray-300 shadow-sm p-2 border" /></div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full rounded-md border-gray-300 shadow-sm p-2 border" /></div>
+        </div>
+
+        {/* Logo Section */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <label className="block text-sm font-medium text-gray-700 mb-4">Logo del Taller (Para PDF)</label>
+          <div className="flex items-start gap-4">
+            <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden bg-gray-50 relative group">
+              {formData.logoUrl ? (
+                <>
+                  <img src={formData.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                  <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <button type="button" onClick={removeLogo} className="text-white hover:text-red-400"><Trash2 className="w-6 h-6" /></button>
+                  </div>
+                </>
+              ) : <ImageIcon className="w-8 h-8 text-gray-400" />}
+            </div>
+            <div className="flex-1">
+              <input type="file" ref={fileInputRef} onChange={handleLogoUpload} className="hidden" accept="image/*" />
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md flex items-center gap-2"><Upload className="w-4 h-4" /> Subir Logo</button>
+            </div>
+          </div>
         </div>
 
         <div className="flex justify-end pt-4"><button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 transition-transform hover:scale-105"><Save className="w-5 h-5" /> Guardar Todo</button></div>
