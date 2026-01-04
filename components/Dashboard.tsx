@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Calculator, Clock, CheckCircle, Search, Phone, Car, Users, Wallet, XCircle, FileSpreadsheet, Download, Upload, Eye, EyeOff, CalendarClock, Bell, ShieldAlert, CalendarDays, MessageCircle, ChevronLeft, ChevronRight, Wrench, Send, Cloud, CloudUpload, CloudDownload, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Calculator, Clock, CheckCircle, Search, Phone, Car, Users, Wallet, XCircle, FileSpreadsheet, Download, Upload, Eye, EyeOff, CalendarClock, Bell, ShieldAlert, CalendarDays, MessageCircle, ChevronLeft, ChevronRight, Wrench, Send, Cloud, UploadCloud, DownloadCloud, Loader2 } from 'lucide-react';
 import { WorkOrder, Expense, Appointment, WorkshopSettings } from '../types';
 import { TAX_RATE, STATUS_COLORS, STATUS_LABELS } from '../constants';
 
@@ -110,7 +110,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   disabled={isSyncing || !settings.syncCode}
                   className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-bold transition disabled:opacity-50"
               >
-                  {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudDownload className="w-4 h-4" />}
+                  {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <DownloadCloud className="w-4 h-4" />}
                   Bajar Datos
               </button>
               <button 
@@ -118,7 +118,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   disabled={isSyncing || !settings.syncCode}
                   className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 px-4 py-2 rounded-lg text-sm font-bold shadow-md transition disabled:opacity-50"
               >
-                  {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudUpload className="w-4 h-4" />}
+                  {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
                   Subir a la Nube
               </button>
           </div>
