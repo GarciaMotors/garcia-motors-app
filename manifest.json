@@ -1,0 +1,17 @@
+{
+  "name": "Garcia Motors Gestión",
+  "short_name": "GarciaMotors",
+  "description": "Gestión de taller mecánico Garcia Motors",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1995/1995470.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
