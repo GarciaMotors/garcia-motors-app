@@ -13,8 +13,8 @@ import { Raffle } from './components/Raffle';
 import { Calculator } from './components/Calculator';
 import { WorkOrder, ViewState, Expense, Appointment, WorkshopSettings, RaffleWinner } from './types';
 
-// Proveedor de nube profesional y estable
-const CLOUD_API = 'https://jsonblob.com/api/jsonBlob';
+// Proveedor de nube alternativo muy estable para aplicaciones frontend
+const CLOUD_API = 'https://api.restful-api.dev/objects';
 
 function App() {
   const [view, setView] = useState<ViewState>('dashboard');
@@ -62,37 +62,37 @@ function App() {
 
   const pushToCloud = async () => {
     if (!settings.syncCode) {
-      alert("Debes generar un código primero en la pestaña de Configuración (engranaje).");
+      alert("Genera un código en Configuración primero.");
       return;
     }
     
     setIsSyncing(true);
     try {
       const payload = {
-        orders,
-        expenses,
-        appointments,
-        raffleWinners,
-        settings: { ...settings, lastSync: new Date().toLocaleString() }
+        name: `GM_DATA_${settings.syncCode}`,
+        data: {
+          orders,
+          expenses,
+          appointments,
+          raffleWinners,
+          settings: { ...settings, lastSync: new Date().toLocaleString() }
+        }
       };
 
       const response = await fetch(`${CLOUD_API}/${settings.syncCode}`, {
         method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
       if (response.ok) {
         setSettings(prev => ({ ...prev, lastSync: new Date().toLocaleString() }));
-        alert("¡Datos guardados con éxito! Ahora puedes abrir la app en otro equipo y usar el botón 'Bajar Datos'.");
+        alert("¡Datos subidos a la nube exitosamente!");
       } else {
-        throw new Error();
+        throw new Error("Error en servidor");
       }
     } catch (error) {
-      alert("Error al subir. Revisa que tu internet sea estable e intenta de nuevo.");
+      alert("Error al subir datos. Intente nuevamente en unos segundos.");
     } finally {
       setIsSyncing(false);
     }
@@ -100,30 +100,31 @@ function App() {
 
   const pullFromCloud = async () => {
     if (!settings.syncCode) {
-      alert("Ingresa tu código en configuración para bajar los datos.");
+      alert("Ingrese su código de sincronización.");
       return;
     }
 
-    if (!window.confirm("Atención: Esto reemplazará los datos de este equipo por los que están en la nube. ¿Deseas continuar?")) return;
+    if (!window.confirm("¿Desea descargar los datos de la nube? Esto borrará lo que tenga actualmente en este equipo.")) return;
 
     setIsSyncing(true);
     try {
-      const response = await fetch(`${CLOUD_API}/${settings.syncCode}`, {
-        headers: { 'Accept': 'application/json' }
-      });
+      const response = await fetch(`${CLOUD_API}/${settings.syncCode}`);
       if (response.ok) {
-        const data = await response.json();
-        if (data.orders) setOrders(data.orders);
-        if (data.expenses) setExpenses(data.expenses);
-        if (data.appointments) setAppointments(data.appointments);
-        if (data.raffleWinners) setRaffleWinners(data.raffleWinners);
-        if (data.settings) setSettings(data.settings);
-        alert("¡Sincronización Exitosa! Datos actualizados.");
+        const result = await response.json();
+        const data = result.data;
+        if (data) {
+          if (data.orders) setOrders(data.orders);
+          if (data.expenses) setExpenses(data.expenses);
+          if (data.appointments) setAppointments(data.appointments);
+          if (data.raffleWinners) setRaffleWinners(data.raffleWinners);
+          if (data.settings) setSettings(data.settings);
+          alert("¡Datos descargados con éxito!");
+        }
       } else {
-        alert("El código no existe o expiró. Verifica que sea el correcto.");
+        alert("El código ingresado no existe o no tiene datos.");
       }
     } catch (error) {
-      alert("Error al conectar con la nube. Revisa tu conexión.");
+      alert("Error al conectar con la nube.");
     } finally {
       setIsSyncing(false);
     }
@@ -132,31 +133,30 @@ function App() {
   const generateNewCloudCode = async () => {
     setIsSyncing(true);
     try {
-      const payload = { orders: [], expenses: [], appointments: [], raffleWinners: [], settings };
+      const payload = {
+        name: "GM_SYNC_INITIAL",
+        data: { orders: [], expenses: [], appointments: [], raffleWinners: [], settings }
+      };
 
       const response = await fetch(CLOUD_API, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       
       if (response.ok) {
-        const location = response.headers.get('Location');
-        if (location) {
-          const newCode = location.split('/').pop();
-          if (newCode) {
-            setSettings(prev => ({ ...prev, syncCode: newCode }));
-            alert(`¡Código Nuevo Creado! Anótalo bien: ${newCode}`);
-          }
+        const result = await response.json();
+        const newCode = result.id; // Obtenemos el ID directamente del cuerpo de la respuesta
+        if (newCode) {
+          setSettings(prev => ({ ...prev, syncCode: newCode }));
+          alert(`¡Código Nuevo Generado! Úsalo para conectar tus dispositivos: ${newCode}`);
         }
       } else {
-        throw new Error();
+        throw new Error("No se pudo crear el objeto");
       }
     } catch (error) {
-      alert("Error de conexión. Por favor, intenta presionar el botón de nuevo en unos segundos.");
+      console.error(error);
+      alert("Error de conexión con la nube. Por favor, asegúrese de tener internet e intente de nuevo.");
     } finally {
       setIsSyncing(false);
     }
@@ -255,22 +255,4 @@ function App() {
         <Dashboard 
             orders={orders} expenses={expenses} appointments={appointments} settings={settings}
             onViewOt={handleViewOt} onToggleOtReimbursement={handleToggleOtItemReimbursement}
-            onToggleExpensePaid={handleToggleExpensePaid} onDismissMaintenance={handleDismissMaintenance}
-            onRestore={handleRestoreData}
-            onPushCloud={pushToCloud} onPullCloud={pullFromCloud} isSyncing={isSyncing}
-        />
-      )}
-      {view === 'expenses' && <ExpenseList expenses={expenses} orders={orders} onAdd={handleAddExpense} onEdit={handleEditExpense} onDelete={handleDeleteExpense} />}
-      {view === 'parts' && <PartsList orders={orders} />}
-      {view === 'agenda' && <Agenda appointments={appointments} onAdd={handleAddAppointment} onUpdate={handleUpdateAppointment} onDelete={handleDeleteAppointment} />}
-      {view === 'raffle' && <Raffle orders={orders} winnersHistory={raffleWinners} onRegisterWinner={handleRegisterWinner} onUpdateWinnerStatus={handleUpdateWinnerStatus} onDeleteWinner={handleDeleteWinner} />}
-      {view === 'calculator' && <Calculator />}
-      {view === 'settings' && <Settings settings={settings} onSave={setSettings} onGenerateCode={generateNewCloudCode} isSyncing={isSyncing} />}
-      {view === 'create' && <OtForm initialData={getSelectedOrder()} existingOrders={orders} existingExpenses={expenses} onSave={handleCreateOt} onCancel={() => { setView('list'); setSelectedOrderId(null); }} />}
-      {view === 'details' && getSelectedOrder() && <OtDetail ot={getSelectedOrder()!} settings={settings} onBack={() => { setView('list'); setSelectedOrderId(null); }} />}
-      {view === 'list' && <OtList orders={orders} onView={handleViewOt} onEdit={handleEditOt} onDelete={handleDeleteOt} />}
-    </Layout>
-  );
-}
-
-export default App;
+            onToggleExpensePaid={handleToggleExpensePaid} onDismissMaintenance={handleDismiss
