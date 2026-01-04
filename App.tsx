@@ -13,8 +13,8 @@ import { Raffle } from './components/Raffle';
 import { Calculator } from './components/Calculator';
 import { WorkOrder, ViewState, Expense, Appointment, WorkshopSettings, RaffleWinner } from './types';
 
-// Proveedor de nube: npoint.io (Altamente estable para JSON y sin problemas de CORS)
-const CLOUD_API_BASE = 'https://api.npoint.io/documents';
+// Proveedor de nube profesional y estable
+const CLOUD_API_BASE = 'https://api.restful-api.dev/objects';
 
 function App() {
   const [view, setView] = useState<ViewState>('dashboard');
@@ -56,38 +56,49 @@ function App() {
   useEffect(() => { localStorage.setItem('taller_winners', JSON.stringify(raffleWinners)); }, [raffleWinners]);
   useEffect(() => { localStorage.setItem('taller_settings', JSON.stringify(settings)); }, [settings]);
 
-  // --- LOGICA DE NUBE REFORZADA ---
+  // --- LOGICA DE NUBE PROFESIONAL ---
 
   const pushToCloud = async () => {
     if (!settings.syncCode) {
-      alert("⚠️ Primero genera un código en Configuración.");
+      alert("⚠️ Error: No hay código de sincronización.");
       return;
     }
     setIsSyncing(true);
     try {
       const payload = {
-        orders,
-        expenses,
-        appointments,
-        raffleWinners,
-        settings: { ...settings, lastSync: new Date().toLocaleString() }
+        name: `GM_DATA_${settings.syncCode}`,
+        data: {
+          orders,
+          expenses,
+          appointments,
+          raffleWinners,
+          settings: { ...settings, lastSync: new Date().toLocaleString() }
+        }
       };
 
-      // npoint usa POST para actualizar si el ID ya existe en algunos casos, o PUT
       const response = await fetch(`${CLOUD_API_BASE}/${settings.syncCode}`, {
-        method: 'POST', // npoint usa POST para actualizar el contenido de un documento existente
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
       if (response.ok) {
         setSettings(prev => ({ ...prev, lastSync: new Date().toLocaleString() }));
-        alert("✅ Datos guardados en la nube.");
+        alert("✅ ¡Sincronizado con éxito!");
+      } else if (response.status === 404) {
+        // Si no existe, intentar crearlo con POST
+        const createResp = await fetch(CLOUD_API_BASE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: settings.syncCode, ...payload })
+        });
+        if (createResp.ok) alert("✅ Espacio creado y sincronizado.");
+        else alert("❌ Error al crear espacio en la nube.");
       } else {
-        throw new Error("Error servidor");
+        alert("❌ Error de servidor al subir datos.");
       }
     } catch (error) {
-      alert("❌ Error al subir. Intenta de nuevo.");
+      alert("❌ Error de conexión. Revisa tu internet.");
     } finally {
       setIsSyncing(false);
     }
@@ -95,30 +106,30 @@ function App() {
 
   const pullFromCloud = async () => {
     if (!settings.syncCode) {
-      alert("⚠️ Ingresa tu código en Configuración.");
+      alert("⚠️ Ingresa un código en Configuración.");
       return;
     }
-    if (!window.confirm("⚠️ ¿Bajar datos? Se borrará lo actual en este equipo.")) return;
+    if (!window.confirm("⚠️ ¿Bajar datos de la nube? Se borrará lo que tienes en este equipo.")) return;
+    
     setIsSyncing(true);
     try {
       const response = await fetch(`${CLOUD_API_BASE}/${settings.syncCode}`);
       if (response.ok) {
         const result = await response.json();
-        // npoint devuelve el objeto dentro de una propiedad 'value'
-        const data = result.value || result; 
+        const data = result.data;
         if (data) {
           if (data.orders) setOrders(data.orders);
           if (data.expenses) setExpenses(data.expenses);
           if (data.appointments) setAppointments(data.appointments);
           if (data.raffleWinners) setRaffleWinners(data.raffleWinners);
           if (data.settings) setSettings(data.settings);
-          alert("✅ Datos descargados con éxito.");
+          alert("✅ Datos descargados correctamente.");
         }
       } else {
-        alert("❌ El código no existe o no tiene datos.");
+        alert("❌ Código no encontrado o inválido.");
       }
     } catch (error) {
-      alert("❌ Error de conexión con la nube.");
+      alert("❌ Error de red al conectar con la nube.");
     } finally {
       setIsSyncing(false);
     }
@@ -127,16 +138,11 @@ function App() {
   const generateNewCloudCode = async () => {
     setIsSyncing(true);
     try {
-      const payload = { 
-        value: {
-          orders: [], 
-          expenses: [], 
-          appointments: [], 
-          raffleWinners: [], 
-          settings: { ...settings, syncCode: "" } 
-        }
+      const payload = {
+        name: "GM_INITIAL_SPACE",
+        data: { orders: [], expenses: [], appointments: [], raffleWinners: [], settings }
       };
-
+      
       const response = await fetch(CLOUD_API_BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -148,21 +154,19 @@ function App() {
         const newCode = result.id;
         if (newCode) {
           setSettings(prev => ({ ...prev, syncCode: newCode }));
-          alert(`✅ CÓDIGO NUEVO: ${newCode}\n\nGuárdalo para sincronizar otros dispositivos.`);
+          alert(`✅ CÓDIGO GENERADO: ${newCode}\n\nGuárdalo para conectar otros equipos.`);
         }
       } else {
-        const txt = await response.text();
-        console.error("Server error:", txt);
-        throw new Error("Fail");
+        alert("❌ El servidor de la nube está ocupado. Intenta nuevamente en unos segundos o ingresa un código manual.");
       }
     } catch (error) {
-      alert("❌ Error al generar código. Es posible que el servicio esté saturado. Intenta de nuevo en 10 segundos.");
+      alert("❌ Error de conexión. Intenta de nuevo.");
     } finally {
       setIsSyncing(false);
     }
   };
 
-  // --- RESTO DE FUNCIONES ---
+  // --- MANEJO DE VISTAS ---
   const handleCreateOt = (newOt: WorkOrder) => {
     const today = new Date().toISOString().split('T')[0];
     if (newOt.status === 'delivered' && !newOt.deliveredAt) newOt.deliveredAt = today;
@@ -211,8 +215,8 @@ function App() {
         if (data.appointments) setAppointments(data.appointments);
         if (data.winners) setRaffleWinners(data.winners);
         if (data.settings) setSettings(data.settings);
-        alert('✅ Datos restaurados.');
-      } catch (e) { alert('❌ Error al leer JSON.'); }
+        alert('✅ Restauración completa.');
+      } catch (e) { alert('❌ Error al procesar JSON.'); }
     };
     reader.readAsText(file);
   };
