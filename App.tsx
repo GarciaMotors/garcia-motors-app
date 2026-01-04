@@ -13,8 +13,8 @@ import { Raffle } from './components/Raffle';
 import { Calculator } from './components/Calculator';
 import { WorkOrder, ViewState, Expense, Appointment, WorkshopSettings, RaffleWinner } from './types';
 
-// Proveedor de nube altamente compatible y estable (CORS Friendly)
-const CLOUD_API_BASE = 'https://api.jsonstorage.net/v1/json';
+// Proveedor de nube: npoint.io (Altamente estable para JSON y sin problemas de CORS)
+const CLOUD_API_BASE = 'https://api.npoint.io/documents';
 
 function App() {
   const [view, setView] = useState<ViewState>('dashboard');
@@ -37,39 +37,32 @@ function App() {
 
   const [settings, setSettings] = useState<WorkshopSettings>(defaultSettings);
 
-  // Cargar datos locales al iniciar
   useEffect(() => {
     const savedOrders = localStorage.getItem('taller_orders');
     if (savedOrders) try { setOrders(JSON.parse(savedOrders)); } catch (e) {}
-    
     const savedExpenses = localStorage.getItem('taller_expenses');
     if (savedExpenses) try { setExpenses(JSON.parse(savedExpenses)); } catch (e) {}
-
     const savedAppointments = localStorage.getItem('taller_appointments');
     if (savedAppointments) try { setAppointments(JSON.parse(savedAppointments)); } catch (e) {}
-
     const savedWinners = localStorage.getItem('taller_winners');
     if (savedWinners) try { setRaffleWinners(JSON.parse(savedWinners)); } catch (e) {}
-
     const savedSettings = localStorage.getItem('taller_settings');
     if (savedSettings) try { setSettings(prev => ({ ...prev, ...JSON.parse(savedSettings) })); } catch (e) {}
   }, []);
 
-  // Guardar datos locales automáticamente
   useEffect(() => { localStorage.setItem('taller_orders', JSON.stringify(orders)); }, [orders]);
   useEffect(() => { localStorage.setItem('taller_expenses', JSON.stringify(expenses)); }, [expenses]);
   useEffect(() => { localStorage.setItem('taller_appointments', JSON.stringify(appointments)); }, [appointments]);
   useEffect(() => { localStorage.setItem('taller_winners', JSON.stringify(raffleWinners)); }, [raffleWinners]);
   useEffect(() => { localStorage.setItem('taller_settings', JSON.stringify(settings)); }, [settings]);
 
-  // --- LOGICA DE NUBE (CORREGIDA) ---
+  // --- LOGICA DE NUBE REFORZADA ---
 
   const pushToCloud = async () => {
     if (!settings.syncCode) {
-      alert("⚠️ Primero debes generar un código en la pestaña de Configuración (icono de engranaje).");
+      alert("⚠️ Primero genera un código en Configuración.");
       return;
     }
-    
     setIsSyncing(true);
     try {
       const payload = {
@@ -80,24 +73,21 @@ function App() {
         settings: { ...settings, lastSync: new Date().toLocaleString() }
       };
 
+      // npoint usa POST para actualizar si el ID ya existe en algunos casos, o PUT
       const response = await fetch(`${CLOUD_API_BASE}/${settings.syncCode}`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
+        method: 'POST', // npoint usa POST para actualizar el contenido de un documento existente
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
       if (response.ok) {
         setSettings(prev => ({ ...prev, lastSync: new Date().toLocaleString() }));
-        alert("✅ ¡Sincronización Exitosa! Tus datos están seguros en la nube.");
+        alert("✅ Datos guardados en la nube.");
       } else {
-        const errorData = await response.text();
-        console.error("Cloud Error:", errorData);
-        alert("❌ Error del servidor al subir. Es posible que el código haya expirado o los datos sean muy pesados.");
+        throw new Error("Error servidor");
       }
     } catch (error) {
-      alert("❌ Error de conexión. Revisa tu internet.");
+      alert("❌ Error al subir. Intenta de nuevo.");
     } finally {
       setIsSyncing(false);
     }
@@ -105,30 +95,30 @@ function App() {
 
   const pullFromCloud = async () => {
     if (!settings.syncCode) {
-      alert("⚠️ Ingresa tu código de taller en Configuración.");
+      alert("⚠️ Ingresa tu código en Configuración.");
       return;
     }
-
-    if (!window.confirm("⚠️ ¿Bajar datos de la nube? Esto reemplazará lo que tienes en este equipo por la versión guardada online.")) return;
-
+    if (!window.confirm("⚠️ ¿Bajar datos? Se borrará lo actual en este equipo.")) return;
     setIsSyncing(true);
     try {
       const response = await fetch(`${CLOUD_API_BASE}/${settings.syncCode}`);
       if (response.ok) {
-        const data = await response.json();
+        const result = await response.json();
+        // npoint devuelve el objeto dentro de una propiedad 'value'
+        const data = result.value || result; 
         if (data) {
           if (data.orders) setOrders(data.orders);
           if (data.expenses) setExpenses(data.expenses);
           if (data.appointments) setAppointments(data.appointments);
           if (data.raffleWinners) setRaffleWinners(data.raffleWinners);
           if (data.settings) setSettings(data.settings);
-          alert("✅ ¡Datos restaurados correctamente desde la nube!");
+          alert("✅ Datos descargados con éxito.");
         }
       } else {
-        alert("❌ Código no válido o no se encontraron datos asociados.");
+        alert("❌ El código no existe o no tiene datos.");
       }
     } catch (error) {
-      alert("❌ Error al conectar con la nube.");
+      alert("❌ Error de conexión con la nube.");
     } finally {
       setIsSyncing(false);
     }
@@ -138,11 +128,13 @@ function App() {
     setIsSyncing(true);
     try {
       const payload = { 
-        orders: [], 
-        expenses: [], 
-        appointments: [], 
-        raffleWinners: [], 
-        settings: { ...settings, syncCode: "" } 
+        value: {
+          orders: [], 
+          expenses: [], 
+          appointments: [], 
+          raffleWinners: [], 
+          settings: { ...settings, syncCode: "" } 
+        }
       };
 
       const response = await fetch(CLOUD_API_BASE, {
@@ -153,27 +145,24 @@ function App() {
       
       if (response.ok) {
         const result = await response.json();
-        // El API de jsonstorage devuelve la URI completa: https://.../v1/json/ID
-        const uri = result.uri;
-        const newCode = uri.split('/').pop();
-        
+        const newCode = result.id;
         if (newCode) {
           setSettings(prev => ({ ...prev, syncCode: newCode }));
-          alert(`✅ ¡CÓDIGO GENERADO CON ÉXITO!\n\nTu código es: ${newCode}\n\nAnótalo para conectar otros dispositivos.`);
+          alert(`✅ CÓDIGO NUEVO: ${newCode}\n\nGuárdalo para sincronizar otros dispositivos.`);
         }
       } else {
-        throw new Error("Server response not ok");
+        const txt = await response.text();
+        console.error("Server error:", txt);
+        throw new Error("Fail");
       }
     } catch (error) {
-      console.error(error);
-      alert("❌ Error al generar el código. Intenta de nuevo en unos segundos.");
+      alert("❌ Error al generar código. Es posible que el servicio esté saturado. Intenta de nuevo en 10 segundos.");
     } finally {
       setIsSyncing(false);
     }
   };
 
-  // --- MANEJO DE VISTAS Y DATOS ---
-
+  // --- RESTO DE FUNCIONES ---
   const handleCreateOt = (newOt: WorkOrder) => {
     const today = new Date().toISOString().split('T')[0];
     if (newOt.status === 'delivered' && !newOt.deliveredAt) newOt.deliveredAt = today;
@@ -185,37 +174,18 @@ function App() {
     setView('list');
     setSelectedOrderId(null);
   };
-
-  const handleDeleteOt = (id: string) => {
-    if (window.confirm('¿Eliminar esta OT permanentemente?')) setOrders(orders.filter(o => o.id !== id));
-  };
-
-  const handleEditOt = (id: string) => {
-    setSelectedOrderId(id);
-    setView('create');
-  };
-
-  const handleViewOt = (id: string) => {
-    setSelectedOrderId(id);
-    setView('details');
-  };
-
+  const handleDeleteOt = (id: string) => { if (window.confirm('¿Eliminar permanentemente?')) setOrders(orders.filter(o => o.id !== id)); };
+  const handleEditOt = (id: string) => { setSelectedOrderId(id); setView('create'); };
+  const handleViewOt = (id: string) => { setSelectedOrderId(id); setView('details'); };
   const handleToggleOtItemReimbursement = (otId: string, itemId: string) => {
     const today = new Date().toISOString().split('T')[0];
     setOrders(orders.map(o => o.id !== otId ? o : {
-      ...o,
-      items: o.items.map(i => i.id !== itemId ? i : { 
+      ...o, items: o.items.map(i => i.id !== itemId ? i : { 
         ...i, isReimbursed: !i.isReimbursed, reimbursementDate: !i.isReimbursed ? today : i.reimbursementDate 
       })
     }));
   };
-
-  const handleDismissMaintenance = (otId: string) => {
-    if(window.confirm("¿Confirmas que ya contactaste al cliente?")) {
-      setOrders(orders.map(o => o.id === otId ? { ...o, maintenanceAlertDismissed: true } : o));
-    }
-  };
-
+  const handleDismissMaintenance = (otId: string) => { if(window.confirm("¿Confirmar contacto?")) setOrders(orders.map(o => o.id === otId ? { ...o, maintenanceAlertDismissed: true } : o)); };
   const handleAddExpense = (newExp: Expense) => setExpenses([...expenses, newExp]);
   const handleEditExpense = (updExp: Expense) => setExpenses(expenses.map(e => e.id === updExp.id ? updExp : e));
   const handleDeleteExpense = (id: string) => window.confirm('¿Eliminar?') && setExpenses(expenses.filter(e => e.id !== id));
@@ -223,17 +193,14 @@ function App() {
     const today = new Date().toISOString().split('T')[0];
     setExpenses(expenses.map(e => e.id !== id ? e : { ...e, isPaid: !e.isPaid, paymentDate: !e.isPaid ? today : e.paymentDate }));
   };
-
   const handleAddAppointment = (apt: Appointment) => setAppointments(prev => [...prev, apt]);
   const handleUpdateAppointment = (updApt: Appointment) => setAppointments(prev => prev.map(a => a.id === updApt.id ? updApt : a));
-  const handleDeleteAppointment = (id: string) => window.confirm("¿Eliminar cita?") && setAppointments(prev => prev.filter(a => a.id !== id));
-
+  const handleDeleteAppointment = (id: string) => window.confirm("¿Eliminar?") && setAppointments(prev => prev.filter(a => a.id !== id));
   const handleRegisterWinner = (winner: RaffleWinner) => setRaffleWinners(prev => [winner, ...prev]);
   const handleUpdateWinnerStatus = (id: string, isRedeemed: boolean) => {
     setRaffleWinners(prev => prev.map(w => w.id === id ? { ...w, isRedeemed, redemptionDate: isRedeemed ? new Date().toISOString().split('T')[0] : undefined } : w));
   };
-  const handleDeleteWinner = (id: string) => window.confirm("¿Borrar ganador?") && setRaffleWinners(prev => prev.filter(w => w.id !== id));
-
+  const handleDeleteWinner = (id: string) => window.confirm("¿Borrar?") && setRaffleWinners(prev => prev.filter(w => w.id !== id));
   const handleRestoreData = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -244,12 +211,11 @@ function App() {
         if (data.appointments) setAppointments(data.appointments);
         if (data.winners) setRaffleWinners(data.winners);
         if (data.settings) setSettings(data.settings);
-        alert('✅ Base de datos restaurada con éxito.');
-      } catch (e) { alert('❌ Error al leer el archivo JSON.'); }
+        alert('✅ Datos restaurados.');
+      } catch (e) { alert('❌ Error al leer JSON.'); }
     };
     reader.readAsText(file);
   };
-
   const getSelectedOrder = () => orders.find(o => o.id === selectedOrderId);
 
   return (
