@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Calculator, Clock, CheckCircle, Search, Phone, Car, Users, Wallet, XCircle, FileSpreadsheet, Download, Upload, Eye, EyeOff, CalendarClock, Bell, ShieldAlert, CalendarDays, MessageCircle, ChevronLeft, ChevronRight, Wrench, Send, Cloud, UploadCloud, DownloadCloud, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Calculator, Clock, CheckCircle, Search, Phone, Car, Users, Wallet, XCircle, FileSpreadsheet, Download, Upload, Eye, EyeOff, CalendarClock, Bell, ShieldAlert, CalendarDays, MessageCircle, ChevronLeft, ChevronRight, Wrench, Send, Cloud, UploadCloud, DownloadCloud, Loader2, Apple } from 'lucide-react';
 import { WorkOrder, Expense, Appointment, WorkshopSettings } from '../types';
 import { TAX_RATE, STATUS_COLORS, STATUS_LABELS } from '../constants';
 
@@ -86,7 +86,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       
-      {/* SECCIÓN NUBE GARCIA MOTORS (NUEVA) */}
+      {/* SECCIÓN NUBE GARCIA MOTORS */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-4 text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
               <div className="bg-white/20 p-2 rounded-full">
@@ -122,6 +122,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   Subir a la Nube
               </button>
           </div>
+      </div>
+
+      {/* AVISO INSTALACIÓN IPHONE */}
+      <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg flex items-center justify-between no-print">
+          <div className="flex items-center gap-2 text-blue-800 text-xs font-medium">
+              <Apple className="w-4 h-4" />
+              ¿Quieres esta app en tu pantalla de inicio?
+          </div>
+          <p className="text-[10px] text-blue-600">Safari > Compartir > Agregar a inicio</p>
       </div>
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
