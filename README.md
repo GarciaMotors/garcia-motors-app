@@ -1,20 +1,35 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 🔧 Garcia Motors - Gestión de Taller Pro
 
-# Run and deploy your AI Studio app
+Sistema integral para la gestión de talleres mecánicos. Diseñado como una **PWA (Progressive Web App)** para funcionar en la nube y ser instalada en dispositivos móviles (iPhone/Android) como una App nativa.
 
-This contains everything you need to run your app locally.
+## 🚀 Características Principales
 
-View your app in AI Studio: https://ai.studio/apps/drive/1ZzC7-nVIby6hwxGob3xKbK1U0hNjd1Xe
+- **Gestión de OT:** Creación, edición y seguimiento de Órdenes de Trabajo.
+- **Modo Garantía:** Vinculación de nuevas entradas con trabajos anteriores.
+- **Inspección Visual:** Croquis técnico interactivo para marcar daños pre-existentes.
+- **Control Financiero:** Cálculo automático de IVA (F29), utilidades reales y deudas de insumos.
+- **Agenda y Citas:** Calendario con alertas y botones directos para recordatorios vía **WhatsApp**.
+- **Sorteos:** Módulo para fidelizar clientes mediante concursos aleatorios filtrados.
+- **Calculadora Técnica:** Herramientas integradas para cálculo de margen de repuestos e IVA.
+- **Privacidad:** Los datos se almacenan localmente en el navegador y se pueden respaldar en archivos JSON.
 
-## Run Locally
+## 📱 Instalación en iPhone / Android
 
-**Prerequisites:**  Node.js
+Para usar esta app en tu celular como si fuera una app de la App Store:
 
+1. Despliega el proyecto en un servicio de hosting (Recomendado: **Vercel**).
+2. Abre el enlace generado en **Safari** (iPhone) o **Chrome** (Android).
+3. Toca el botón **"Compartir"** (iPhone) o los tres puntos de menú (Android).
+4. Selecciona **"Añadir a la pantalla de inicio"**.
+5. ¡Listo! Tendrás el icono de Garcia Motors en tu menú principal.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 🛠️ Tecnologías Usadas
+
+- **React + TypeScript** (Interfaz rápida y segura)
+- **Tailwind CSS** (Diseño moderno y responsivo)
+- **Lucide React** (Iconografía profesional)
+- **PWA Capabilities** (Service Workers y Manifest para modo offline)
+- **Vercel** (Cloud Hosting)
+
+---
+*Desarrollado para Garcia Motors - Servicio Automotriz*

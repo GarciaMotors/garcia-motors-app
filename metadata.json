@@ -1,5 +1,5 @@
 {
-  "name": "Copy of GarciaMotors",
-  "description": "Sistema de gestión de Ordenes de Trabajo (OT) para talleres mecánicos con cálculo de costos, IVA y gestión de clientes.",
+  "name": "Garcia Motors Pro",
+  "description": "Sistema de gestión integral para taller mecánico con PWA y Cloud Sync",
   "requestFramePermissions": []
 }

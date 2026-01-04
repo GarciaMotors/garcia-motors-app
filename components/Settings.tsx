@@ -1,13 +1,16 @@
+
 import React, { useState, useRef } from 'react';
-import { Save, Upload, Building, Phone, Mail, FileText, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { Save, Upload, Building, Phone, Mail, FileText, Image as ImageIcon, Trash2, Cloud, Key, RefreshCw, Loader2 } from 'lucide-react';
 import { WorkshopSettings } from '../types';
 
 interface SettingsProps {
   settings: WorkshopSettings;
   onSave: (settings: WorkshopSettings) => void;
+  onGenerateCode?: () => void;
+  isSyncing?: boolean;
 }
 
-export const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
+export const Settings: React.FC<SettingsProps> = ({ settings, onSave, onGenerateCode, isSyncing }) => {
   const [formData, setFormData] = useState<WorkshopSettings>(settings);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -19,9 +22,7 @@ export const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, logoUrl: reader.result as string }));
-      };
+      reader.onloadend = () => setFormData(prev => ({ ...prev, logoUrl: reader.result as string }));
       reader.readAsDataURL(file);
     }
   };
@@ -38,142 +39,85 @@ export const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto pb-10 animate-fade-in">
+    <div className="max-w-2xl mx-auto pb-20 animate-fade-in">
       <div className="flex items-center gap-3 mb-6">
         <Building className="w-8 h-8 text-blue-600" />
         <h2 className="text-2xl font-bold text-gray-800">Configuración del Taller</h2>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
         
+        {/* NUBE CONFIG */}
+        <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100 shadow-sm">
+           <h3 className="text-indigo-900 font-bold mb-4 flex items-center gap-2">
+              <Cloud className="w-5 h-5" /> Configuración de Nube (Sincronización)
+           </h3>
+           <p className="text-sm text-indigo-700 mb-4">
+              Usa un código para sincronizar tus datos entre múltiples dispositivos (PC, iPhone, Tablet).
+           </p>
+           <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                 <Key className="absolute left-3 top-2.5 h-4 w-4 text-indigo-400" />
+                 <input 
+                    type="text" 
+                    name="syncCode"
+                    value={formData.syncCode || ''}
+                    onChange={handleChange}
+                    placeholder="Tu Código de Taller..."
+                    className="pl-9 w-full rounded-md border-indigo-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border bg-white font-mono"
+                 />
+              </div>
+              <button 
+                type="button"
+                onClick={onGenerateCode}
+                disabled={isSyncing}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-md font-bold text-sm flex items-center justify-center gap-2 hover:bg-indigo-700 transition disabled:opacity-50"
+              >
+                {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                Generar Nuevo
+              </button>
+           </div>
+           <p className="text-[10px] text-indigo-500 mt-2 italic">
+              * Si ya tienes un código, escríbelo arriba. Si es la primera vez, presiona "Generar Nuevo".
+           </p>
+        </div>
+
         {/* Logo Section */}
-        <div className="border-b border-gray-200 pb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Logo del Taller (Para PDF)</label>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <label className="block text-sm font-medium text-gray-700 mb-4">Logo del Taller (Para PDF)</label>
           <div className="flex items-start gap-4">
             <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden bg-gray-50 relative group">
               {formData.logoUrl ? (
                 <>
                   <img src={formData.logoUrl} alt="Logo" className="w-full h-full object-contain" />
                   <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <button type="button" onClick={removeLogo} className="text-white hover:text-red-400">
-                      <Trash2 className="w-6 h-6" />
-                    </button>
+                    <button type="button" onClick={removeLogo} className="text-white hover:text-red-400"><Trash2 className="w-6 h-6" /></button>
                   </div>
                 </>
-              ) : (
-                <ImageIcon className="w-8 h-8 text-gray-400" />
-              )}
+              ) : <ImageIcon className="w-8 h-8 text-gray-400" />}
             </div>
             <div className="flex-1">
-              <p className="text-sm text-gray-500 mb-2">
-                Sube tu logo para personalizar las Órdenes de Trabajo. Se recomienda formato PNG o JPG cuadrado.
-              </p>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleLogoUpload} 
-                className="hidden" 
-                accept="image/*" 
-              />
-              <button 
-                type="button" 
-                onClick={() => fileInputRef.current?.click()}
-                className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md flex items-center gap-2 transition-colors"
-              >
-                <Upload className="w-4 h-4" /> Seleccionar Imagen
-              </button>
+              <input type="file" ref={fileInputRef} onChange={handleLogoUpload} className="hidden" accept="image/*" />
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md flex items-center gap-2"><Upload className="w-4 h-4" /> Subir Logo</button>
             </div>
           </div>
         </div>
 
         {/* Basic Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Taller</label>
-            <div className="relative">
-              <Building className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                name="name"
-                required
-                value={formData.name}
-                onChange={handleChange}
-                className="pl-9 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
-                placeholder="Ej: Garcia Motors"
-              />
-            </div>
+            <input type="text" name="name" required value={formData.name} onChange={handleChange} className="w-full rounded-md border-gray-300 shadow-sm p-2 border" />
           </div>
-          
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Subtítulo / Slogan</label>
-            <div className="relative">
-              <FileText className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                name="subtitle"
-                value={formData.subtitle}
-                onChange={handleChange}
-                className="pl-9 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
-                placeholder="Ej: Servicio Automotriz Multimarca"
-              />
-            </div>
-          </div>
-
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
-            <div className="relative">
-              <Building className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                className="pl-9 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
-                placeholder="Dirección completa"
-              />
-            </div>
+            <input type="text" name="address" value={formData.address} onChange={handleChange} className="w-full rounded-md border-gray-300 shadow-sm p-2 border" />
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                className="pl-9 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
-                placeholder="+56 9 ..."
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="pl-9 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
-                placeholder="contacto@taller.cl"
-              />
-            </div>
-          </div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label><input type="text" name="phone" value={formData.phone} onChange={handleChange} className="w-full rounded-md border-gray-300 shadow-sm p-2 border" /></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full rounded-md border-gray-300 shadow-sm p-2 border" /></div>
         </div>
 
-        <div className="pt-4 border-t border-gray-200 flex justify-end">
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md font-medium flex items-center gap-2 transition-colors"
-          >
-            <Save className="w-4 h-4" /> Guardar Configuración
-          </button>
-        </div>
-
+        <div className="flex justify-end pt-4"><button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 transition-transform hover:scale-105"><Save className="w-5 h-5" /> Guardar Todo</button></div>
       </form>
     </div>
   );

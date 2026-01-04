@@ -10,24 +10,22 @@ export interface WorkItem {
   description: string;
   type: ItemType;
   quantity: number;
-  unitPrice: number; // Precio Venta FINAL (IVA incluido) - Para cliente
-  costPrice?: number; // Precio Costo (Solo para Gasto Interno)
-  purchaseDocType?: DocumentType; // Con qué documento compramos este repuesto/gasto
-  buyer?: string; // Quien realizó el gasto (Solo para Gasto Interno)
-  provider?: string; // Proveedor donde se compró el repuesto
-  isReimbursed?: boolean; // Si el taller ya le pagó a quien compró el repuesto
-  reimbursementDate?: string; // Fecha cuando se devolvió el dinero
-  
-  // New Discount Fields
-  discount?: number; // Monto o Porcentaje
-  discountType?: 'amount' | 'percent'; // Tipo de descuento
-  discountReason?: string; // Motivo
+  unitPrice: number; 
+  costPrice?: number; 
+  purchaseDocType?: DocumentType;
+  buyer?: string;
+  provider?: string;
+  isReimbursed?: boolean;
+  reimbursementDate?: string;
+  discount?: number; 
+  discountType?: 'amount' | 'percent';
+  discountReason?: string;
 }
 
 export interface DamagePoint {
     id: string;
-    x: number; // Percentage X
-    y: number; // Percentage Y
+    x: number;
+    y: number;
     type: 'scratch' | 'dent' | 'other';
     note?: string;
 }
@@ -38,42 +36,37 @@ export interface Client {
 }
 
 export interface Vehicle {
-  brand: string; // Marca
-  model: string; // Modelo
-  plate: string; // Patente
-  year: string; // Año
-  mileage: string; // Kilometraje
-  vin?: string; // VIN (Chasis) Opcional
+  brand: string;
+  model: string;
+  plate: string;
+  year: string;
+  mileage: string;
+  vin?: string;
 }
 
 export interface WorkOrder {
-  id: string; // OT Number
-  otType?: OtType; // Normal or Warranty
-  parentOtId?: string; // If warranty, which OT is the origin
-  warrantyReason?: string; // Description of the warranty claim
-  date: string; // Fecha creation
-  deliveredAt?: string; // Fecha real de entrega (YYYY-MM-DD)
+  id: string;
+  otType?: OtType;
+  parentOtId?: string;
+  warrantyReason?: string;
+  date: string;
+  deliveredAt?: string;
   status: 'pending' | 'in-progress' | 'completed' | 'delivered';
   documentType: DocumentType;
   client: Client;
   vehicle: Vehicle;
   mechanic: string;
-  description: string; // General description of issue
+  description: string;
   items: WorkItem[];
   notes?: string;
-  clientProvidesParts?: boolean; // Flag if client brings their own parts
-  // Maintenance Fields
+  clientProvidesParts?: boolean;
   isMaintenance?: boolean;
   maintenanceIntervalMonths?: number;
-  nextMaintenanceDate?: string; // Calculated date
-  maintenanceAlertDismissed?: boolean; // To hide alert after contact
-  
-  // Inspection Fields
-  technicalRecommendations?: string; // Recomendaciones al cliente
-  visualInspectionComments?: string; // Comentarios revisión visual
-  damagePoints?: DamagePoint[]; // Puntos marcados en el croquis
-  
-  // Scanner Fields
+  nextMaintenanceDate?: string;
+  maintenanceAlertDismissed?: boolean;
+  technicalRecommendations?: string;
+  visualInspectionComments?: string;
+  damagePoints?: DamagePoint[];
   hasScanner?: boolean;
   scannerLink?: string;
 }
@@ -82,14 +75,14 @@ export interface Expense {
   id: string;
   date: string;
   description: string;
-  amount: number; // Gross amount (Total)
+  amount: number;
   documentType: ExpenseDocType;
-  category?: ExpenseCategory; // General o Insumos
-  buyerName: string; // Quien hizo la compra
-  provider?: string; // Proveedor / Donde se compro
-  notes?: string; // Comentarios adicionales
-  isPaid: boolean; // Si ya se le devolvio el dinero o pago la empresa
-  paymentDate?: string; // Fecha de pago o programada
+  category?: ExpenseCategory;
+  buyerName: string;
+  provider?: string;
+  notes?: string;
+  isPaid: boolean;
+  paymentDate?: string;
 }
 
 export type AppointmentStatus = 'pending' | 'confirmed' | 'cancelled';
@@ -100,7 +93,7 @@ export interface Appointment {
   time: string;
   clientName: string;
   plate: string;
-  issue: string; // Problema/Motivo
+  issue: string;
   status: AppointmentStatus;
   createdAt: string;
 }
@@ -111,7 +104,9 @@ export interface WorkshopSettings {
   address: string;
   phone: string;
   email: string;
-  logoUrl?: string; // Base64 string for image
+  logoUrl?: string;
+  syncCode?: string; // Código para sincronización en la nube
+  lastSync?: string; // Fecha de última sincronización exitosa
 }
 
 export interface RaffleWinner {
@@ -122,7 +117,7 @@ export interface RaffleWinner {
   vehicleInfo: string;
   prizeTitle: string;
   prizeDetail: string;
-  isRedeemed: boolean; // Si ya se cobro el premio
+  isRedeemed: boolean;
   redemptionDate?: string;
 }
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { OtList } from './components/OtList';
@@ -9,8 +10,11 @@ import { Dashboard } from './components/Dashboard';
 import { Agenda } from './components/Agenda';
 import { Settings } from './components/Settings';
 import { Raffle } from './components/Raffle';
-import { Calculator } from './components/Calculator'; // Import Calculator
+import { Calculator } from './components/Calculator';
 import { WorkOrder, ViewState, Expense, Appointment, WorkshopSettings, RaffleWinner } from './types';
+
+// API para almacenamiento en la nube (Public JSON storage)
+const CLOUD_API = 'https://jsonblob.com/api/jsonBlob';
 
 function App() {
   const [view, setView] = useState<ViewState>('dashboard');
@@ -19,164 +23,152 @@ function App() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [raffleWinners, setRaffleWinners] = useState<RaffleWinner[]>([]); 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const defaultSettings: WorkshopSettings = {
     name: 'GARCIA Motors',
     subtitle: 'Servicio Automotriz',
     address: 'Nonato Coo 4250, Puente Alto',
     phone: '+56 9 5473 7414',
-    email: 'contactogarciamotors@gmail.com'
+    email: 'contactogarciamotors@gmail.com',
+    syncCode: '',
+    lastSync: ''
   };
 
-  // Default Settings
   const [settings, setSettings] = useState<WorkshopSettings>(defaultSettings);
 
   // Load data from local storage
   useEffect(() => {
     const savedOrders = localStorage.getItem('taller_orders');
-    if (savedOrders) {
-      try {
-        setOrders(JSON.parse(savedOrders));
-      } catch (e) {
-        console.error("Error parsing saved orders", e);
-      }
-    }
+    if (savedOrders) try { setOrders(JSON.parse(savedOrders)); } catch (e) {}
     
     const savedExpenses = localStorage.getItem('taller_expenses');
-    if (savedExpenses) {
-      try {
-        setExpenses(JSON.parse(savedExpenses));
-      } catch (e) {
-        console.error("Error parsing saved expenses", e);
-      }
-    }
+    if (savedExpenses) try { setExpenses(JSON.parse(savedExpenses)); } catch (e) {}
 
     const savedAppointments = localStorage.getItem('taller_appointments');
-    if (savedAppointments) {
-      try {
-        setAppointments(JSON.parse(savedAppointments));
-      } catch (e) {
-        console.error("Error parsing saved appointments", e);
-      }
-    }
+    if (savedAppointments) try { setAppointments(JSON.parse(savedAppointments)); } catch (e) {}
 
     const savedWinners = localStorage.getItem('taller_winners');
-    if (savedWinners) {
-        try {
-            setRaffleWinners(JSON.parse(savedWinners));
-        } catch (e) {
-            console.error("Error parsing saved winners", e);
-        }
-    }
+    if (savedWinners) try { setRaffleWinners(JSON.parse(savedWinners)); } catch (e) {}
 
     const savedSettings = localStorage.getItem('taller_settings');
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        // MERGE with defaults to prevent missing fields issues
-        setSettings(prev => ({ ...prev, ...parsed }));
-      } catch (e) {
-        console.error("Error parsing saved settings", e);
-      }
-    }
+    if (savedSettings) try { setSettings(prev => ({ ...prev, ...JSON.parse(savedSettings) })); } catch (e) {}
   }, []);
 
   // Save to local storage
-  useEffect(() => {
-    localStorage.setItem('taller_orders', JSON.stringify(orders));
-  }, [orders]);
+  useEffect(() => { localStorage.setItem('taller_orders', JSON.stringify(orders)); }, [orders]);
+  useEffect(() => { localStorage.setItem('taller_expenses', JSON.stringify(expenses)); }, [expenses]);
+  useEffect(() => { localStorage.setItem('taller_appointments', JSON.stringify(appointments)); }, [appointments]);
+  useEffect(() => { localStorage.setItem('taller_winners', JSON.stringify(raffleWinners)); }, [raffleWinners]);
+  useEffect(() => { localStorage.setItem('taller_settings', JSON.stringify(settings)); }, [settings]);
 
-  useEffect(() => {
-    localStorage.setItem('taller_expenses', JSON.stringify(expenses));
-  }, [expenses]);
-
-  useEffect(() => {
-    localStorage.setItem('taller_appointments', JSON.stringify(appointments));
-  }, [appointments]);
-
-  useEffect(() => {
-    localStorage.setItem('taller_winners', JSON.stringify(raffleWinners));
-  }, [raffleWinners]);
-
-  useEffect(() => {
-    localStorage.setItem('taller_settings', JSON.stringify(settings));
-  }, [settings]);
-
-  // Warn user before closing the tab
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = ''; // Chrome requires returnValue to be set
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, []);
-
-  // Manual Backup Helper
-  const downloadBackup = (currentOrders: WorkOrder[], currentExpenses: Expense[]) => {
-      const backupData = {
-          date: new Date().toISOString(),
-          orders: currentOrders,
-          expenses: currentExpenses,
-          appointments: appointments,
-          settings: settings,
-          winners: raffleWinners
+  // --- CLOUD SYNC LOGIC ---
+  const pushToCloud = async () => {
+    if (!settings.syncCode) {
+      alert("Debes configurar un 'Código de Sincronización' en Configuración para usar la nube.");
+      return;
+    }
+    
+    setIsSyncing(true);
+    try {
+      const data = {
+        orders,
+        expenses,
+        appointments,
+        raffleWinners,
+        settings: { ...settings, lastSync: new Date().toLocaleString() }
       };
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
-      const downloadAnchorNode = document.createElement('a');
-      downloadAnchorNode.setAttribute("href", dataStr);
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      downloadAnchorNode.setAttribute("download", `taller_respaldo_${timestamp}.json`);
-      document.body.appendChild(downloadAnchorNode);
-      downloadAnchorNode.click();
-      downloadAnchorNode.remove();
+
+      // Si ya tenemos un ID de blob (syncCode), intentamos actualizarlo
+      const response = await fetch(`${CLOUD_API}/${settings.syncCode}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      if (response.ok) {
+        setSettings(prev => ({ ...prev, lastSync: new Date().toLocaleString() }));
+        alert("¡Datos subidos con éxito! Ahora puedes descargarlos en otro dispositivo.");
+      } else {
+        throw new Error("Error al subir");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Error al sincronizar con la nube. Verifica tu conexión.");
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
-  const askForBackup = (newOrders: WorkOrder[], newExpenses: Expense[]) => {
-      // Small timeout to allow UI to update first
-      setTimeout(() => {
-          if (window.confirm("Cambios guardados correctamente.\n\n¿Desea descargar una copia de seguridad (Backup) ahora?")) {
-              downloadBackup(newOrders, newExpenses);
-          }
-      }, 100);
+  const pullFromCloud = async () => {
+    if (!settings.syncCode) {
+      alert("Ingresa tu 'Código de Sincronización' para descargar los datos.");
+      return;
+    }
+
+    if (!window.confirm("Esto reemplazará todos los datos actuales de este dispositivo por los de la nube. ¿Continuar?")) return;
+
+    setIsSyncing(true);
+    try {
+      const response = await fetch(`${CLOUD_API}/${settings.syncCode}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.orders) setOrders(data.orders);
+        if (data.expenses) setExpenses(data.expenses);
+        if (data.appointments) setAppointments(data.appointments);
+        if (data.raffleWinners) setRaffleWinners(data.raffleWinners);
+        if (data.settings) setSettings(data.settings);
+        alert("¡Sincronización completa! Datos actualizados.");
+      } else {
+        alert("Código inválido o no se encontraron datos en la nube.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Error al descargar datos. Revisa el código.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const generateNewCloudCode = async () => {
+    setIsSyncing(true);
+    try {
+      const response = await fetch(CLOUD_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orders: [], expenses: [], appointments: [], raffleWinners: [], settings })
+      });
+      const location = response.headers.get('Location');
+      if (location) {
+        const newCode = location.split('/').pop();
+        setSettings(prev => ({ ...prev, syncCode: newCode }));
+        alert(`¡Nuevo Código Generado! Guárdalo: ${newCode}\nUsa este código en tus otros dispositivos.`);
+      }
+    } catch (error) {
+      alert("No se pudo generar código. Revisa tu internet.");
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   // OT Handlers
   const handleCreateOt = (newOt: WorkOrder) => {
     const today = new Date().toISOString().split('T')[0];
+    if (newOt.status === 'delivered' && !newOt.deliveredAt) newOt.deliveredAt = today;
     
-    // Logic to set deliveredAt
-    if (newOt.status === 'delivered' && !newOt.deliveredAt) {
-        newOt.deliveredAt = today;
-    } else if (newOt.status !== 'delivered') {
-        newOt.deliveredAt = undefined; // Reset if moved back from delivered
-    }
-
     let updatedOrders: WorkOrder[];
     const exists = orders.find(o => o.id === newOt.id);
-    
-    if (exists) {
-        updatedOrders = orders.map(o => o.id === newOt.id ? newOt : o);
-    } else {
-        updatedOrders = [newOt, ...orders];
-    }
+    if (exists) updatedOrders = orders.map(o => o.id === newOt.id ? newOt : o);
+    else updatedOrders = [newOt, ...orders];
     
     setOrders(updatedOrders);
-    
-    // Ask for backup manually instead of auto
-    askForBackup(updatedOrders, expenses);
-
     setView('list');
     setSelectedOrderId(null);
   };
 
   const handleDeleteOt = (id: string) => {
     if (window.confirm('¿Está seguro de eliminar esta OT?')) {
-        const updatedOrders = orders.filter(o => o.id !== id);
-        setOrders(updatedOrders);
-        askForBackup(updatedOrders, expenses);
+        setOrders(orders.filter(o => o.id !== id));
     }
   };
 
@@ -190,7 +182,6 @@ function App() {
     setView('details');
   };
 
-  // Reimbursment Handler for OT Items
   const handleToggleOtItemReimbursement = (otId: string, itemId: string) => {
       const today = new Date().toISOString().split('T')[0];
       setOrders(orders.map(o => {
@@ -200,225 +191,74 @@ function App() {
               items: o.items.map(i => {
                   if (i.id !== itemId) return i;
                   const newStatus = !i.isReimbursed;
-                  return { 
-                      ...i, 
-                      isReimbursed: newStatus,
-                      reimbursementDate: newStatus ? today : i.reimbursementDate 
-                  };
+                  return { ...i, isReimbursed: newStatus, reimbursementDate: newStatus ? today : i.reimbursementDate };
               })
           };
       }));
   };
 
-  // Maintenance Alert Dismissal
   const handleDismissMaintenance = (otId: string) => {
-      if(window.confirm("¿Confirmas que ya contactaste al cliente para su mantención?\nEsto ocultará la alerta.")) {
-          setOrders(orders.map(o => {
-              if (o.id !== otId) return o;
-              return { ...o, maintenanceAlertDismissed: true };
-          }));
+      if(window.confirm("¿Confirmas que ya contactaste al cliente?")) {
+          setOrders(orders.map(o => o.id === otId ? { ...o, maintenanceAlertDismissed: true } : o));
       }
   };
 
-  // Expense Handlers
-  const handleAddExpense = (newExpense: Expense) => {
-    const updatedExpenses = [...expenses, newExpense];
-    setExpenses(updatedExpenses);
-    askForBackup(orders, updatedExpenses);
-  };
-
-  const handleEditExpense = (updatedExpense: Expense) => {
-      const updatedExpenses = expenses.map(e => e.id === updatedExpense.id ? updatedExpense : e);
-      setExpenses(updatedExpenses);
-      askForBackup(orders, updatedExpenses);
-  };
-
-  const handleDeleteExpense = (id: string) => {
-    if (window.confirm('¿Eliminar este gasto?')) {
-        const updatedExpenses = expenses.filter(e => e.id !== id);
-        setExpenses(updatedExpenses);
-        askForBackup(orders, updatedExpenses);
-    }
-  };
-
-  // Expense Paid Toggle
+  const handleAddExpense = (newExp: Expense) => setExpenses([...expenses, newExp]);
+  const handleEditExpense = (updExp: Expense) => setExpenses(expenses.map(e => e.id === updExp.id ? updExp : e));
+  const handleDeleteExpense = (id: string) => window.confirm('¿Eliminar?') && setExpenses(expenses.filter(e => e.id !== id));
   const handleToggleExpensePaid = (id: string) => {
       const today = new Date().toISOString().split('T')[0];
-      setExpenses(expenses.map(e => {
-        if (e.id === id) {
-            const newStatus = !e.isPaid;
-            return {
-                ...e,
-                isPaid: newStatus,
-                paymentDate: newStatus ? today : e.paymentDate
-            };
-        }
-        return e;
-      }));
+      setExpenses(expenses.map(e => e.id === id ? { ...e, isPaid: !e.isPaid, paymentDate: !e.isPaid ? today : e.paymentDate } : e));
   };
 
-  // Appointment Handlers
-  const handleAddAppointment = (apt: Appointment) => {
-      setAppointments(prev => [...prev, apt]);
-  };
+  const handleAddAppointment = (apt: Appointment) => setAppointments(prev => [...prev, apt]);
+  const handleUpdateAppointment = (updApt: Appointment) => setAppointments(prev => prev.map(a => a.id === updApt.id ? updApt : a));
+  const handleDeleteAppointment = (id: string) => window.confirm("¿Eliminar?") && setAppointments(prev => prev.filter(a => a.id !== id));
 
-  const handleUpdateAppointment = (updatedApt: Appointment) => {
-      setAppointments(prev => prev.map(a => a.id === updatedApt.id ? updatedApt : a));
-  };
-
-  const handleDeleteAppointment = (id: string) => {
-      if(window.confirm("¿Eliminar esta cita?")) {
-          setAppointments(prev => prev.filter(a => a.id !== id));
-      }
-  };
-
-  // Raffle Handlers
-  const handleRegisterWinner = (winner: RaffleWinner) => {
-      setRaffleWinners(prev => [winner, ...prev]);
-  };
-
+  const handleRegisterWinner = (winner: RaffleWinner) => setRaffleWinners(prev => [winner, ...prev]);
   const handleUpdateWinnerStatus = (id: string, isRedeemed: boolean) => {
-      setRaffleWinners(prev => prev.map(w => w.id === id ? {
-          ...w, 
-          isRedeemed,
-          redemptionDate: isRedeemed ? new Date().toISOString().split('T')[0] : undefined
-      } : w));
+      setRaffleWinners(prev => prev.map(w => w.id === id ? { ...w, isRedeemed, redemptionDate: isRedeemed ? new Date().toISOString().split('T')[0] : undefined } : w));
   };
+  const handleDeleteWinner = (id: string) => window.confirm("¿Borrar?") && setRaffleWinners(prev => prev.filter(w => w.id !== id));
 
-  const handleDeleteWinner = (id: string) => {
-      if(window.confirm("¿Borrar este ganador del historial?")) {
-        setRaffleWinners(prev => prev.filter(w => w.id !== id));
-      }
-  };
-
-
-  // Backup & Restore Handlers
   const handleRestoreData = (file: File) => {
       const reader = new FileReader();
       reader.onload = (e) => {
           try {
-              const content = e.target?.result as string;
-              const data = JSON.parse(content);
-              if (data.orders && Array.isArray(data.orders)) setOrders(data.orders);
-              if (data.expenses && Array.isArray(data.expenses)) setExpenses(data.expenses);
-              if (data.appointments && Array.isArray(data.appointments)) setAppointments(data.appointments);
-              if (data.winners && Array.isArray(data.winners)) setRaffleWinners(data.winners);
+              const data = JSON.parse(e.target?.result as string);
+              if (data.orders) setOrders(data.orders);
+              if (data.expenses) setExpenses(data.expenses);
+              if (data.appointments) setAppointments(data.appointments);
+              if (data.winners) setRaffleWinners(data.winners);
               if (data.settings) setSettings(data.settings);
-              alert('Base de datos restaurada con éxito.');
-              window.location.reload();
-          } catch (error) {
-              alert('Error al leer el archivo de respaldo.');
-              console.error(error);
-          }
+              alert('Base de datos restaurada.');
+          } catch (e) { alert('Error al leer el archivo.'); }
       };
       reader.readAsText(file);
   };
 
   const getSelectedOrder = () => orders.find(o => o.id === selectedOrderId);
 
-  // Router Logic
-  const renderContent = () => {
-    switch (view) {
-      case 'dashboard':
-        return (
-            <Dashboard 
-                orders={orders} 
-                expenses={expenses}
-                appointments={appointments}
-                settings={settings}
-                onViewOt={handleViewOt} 
-                onToggleOtReimbursement={handleToggleOtItemReimbursement}
-                onToggleExpensePaid={handleToggleExpensePaid}
-                onDismissMaintenance={handleDismissMaintenance}
-                onRestore={handleRestoreData}
-            />
-        );
-      case 'expenses':
-        return (
-            <ExpenseList 
-                expenses={expenses} 
-                orders={orders}
-                onAdd={handleAddExpense} 
-                onEdit={handleEditExpense}
-                onDelete={handleDeleteExpense} 
-            />
-        );
-      case 'parts':
-        return (
-            <PartsList orders={orders} />
-        );
-      case 'agenda':
-        return (
-            <Agenda 
-                appointments={appointments}
-                onAdd={handleAddAppointment}
-                onUpdate={handleUpdateAppointment}
-                onDelete={handleDeleteAppointment}
-            />
-        );
-      case 'raffle':
-        return (
-            <Raffle 
-                orders={orders} 
-                winnersHistory={raffleWinners}
-                onRegisterWinner={handleRegisterWinner}
-                onUpdateWinnerStatus={handleUpdateWinnerStatus}
-                onDeleteWinner={handleDeleteWinner}
-            />
-        );
-      case 'calculator': // New Case
-        return (
-            <Calculator />
-        );
-      case 'settings':
-        return (
-            <Settings 
-                settings={settings}
-                onSave={setSettings}
-            />
-        );
-      case 'create':
-        return (
-          <OtForm 
-            initialData={getSelectedOrder()} 
-            existingOrders={orders}
-            existingExpenses={expenses}
-            onSave={handleCreateOt} 
-            onCancel={() => {
-                setView('list');
-                setSelectedOrderId(null);
-            }} 
-          />
-        );
-      case 'details':
-        const ot = getSelectedOrder();
-        if (!ot) return <div>Error: OT no encontrada</div>;
-        return (
-          <OtDetail 
-            ot={ot}
-            settings={settings}
-            onBack={() => {
-                setView('list');
-                setSelectedOrderId(null);
-            }} 
-          />
-        );
-      case 'list':
-      default:
-        return (
-          <OtList 
-            orders={orders} 
-            onView={handleViewOt}
-            onEdit={handleEditOt}
-            onDelete={handleDeleteOt}
-          />
-        );
-    }
-  };
-
   return (
     <Layout setView={setView} currentView={view}>
-      {renderContent()}
+      {view === 'dashboard' && (
+        <Dashboard 
+            orders={orders} expenses={expenses} appointments={appointments} settings={settings}
+            onViewOt={handleViewOt} onToggleOtReimbursement={handleToggleOtItemReimbursement}
+            onToggleExpensePaid={handleToggleExpensePaid} onDismissMaintenance={handleDismissMaintenance}
+            onRestore={handleRestoreData}
+            onPushCloud={pushToCloud} onPullCloud={pullFromCloud} isSyncing={isSyncing}
+        />
+      )}
+      {view === 'expenses' && <ExpenseList expenses={expenses} orders={orders} onAdd={handleAddExpense} onEdit={handleEditExpense} onDelete={handleDeleteExpense} />}
+      {view === 'parts' && <PartsList orders={orders} />}
+      {view === 'agenda' && <Agenda appointments={appointments} onAdd={handleAddAppointment} onUpdate={handleUpdateAppointment} onDelete={handleDeleteAppointment} />}
+      {view === 'raffle' && <Raffle orders={orders} winnersHistory={raffleWinners} onRegisterWinner={handleRegisterWinner} onUpdateWinnerStatus={handleUpdateWinnerStatus} onDeleteWinner={handleDeleteWinner} />}
+      {view === 'calculator' && <Calculator />}
+      {view === 'settings' && <Settings settings={settings} onSave={setSettings} onGenerateCode={generateNewCloudCode} isSyncing={isSyncing} />}
+      {view === 'create' && <OtForm initialData={getSelectedOrder()} existingOrders={orders} existingExpenses={expenses} onSave={handleCreateOt} onCancel={() => { setView('list'); setSelectedOrderId(null); }} />}
+      {view === 'details' && getSelectedOrder() && <OtDetail ot={getSelectedOrder()!} settings={settings} onBack={() => { setView('list'); setSelectedOrderId(null); }} />}
+      {view === 'list' && <OtList orders={orders} onView={handleViewOt} onEdit={handleEditOt} onDelete={handleDeleteOt} />}
     </Layout>
   );
 }
