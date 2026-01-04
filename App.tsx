@@ -13,8 +13,8 @@ import { Raffle } from './components/Raffle';
 import { Calculator } from './components/Calculator';
 import { WorkOrder, ViewState, Expense, Appointment, WorkshopSettings, RaffleWinner } from './types';
 
-// Proveedor de nube alternativo muy estable
-const CLOUD_API = 'https://api.restful-api.dev/objects';
+// Proveedor de nube altamente compatible y estable (CORS Friendly)
+const CLOUD_API_BASE = 'https://api.jsonstorage.net/v1/json';
 
 function App() {
   const [view, setView] = useState<ViewState>('dashboard');
@@ -37,6 +37,7 @@ function App() {
 
   const [settings, setSettings] = useState<WorkshopSettings>(defaultSettings);
 
+  // Cargar datos locales al iniciar
   useEffect(() => {
     const savedOrders = localStorage.getItem('taller_orders');
     if (savedOrders) try { setOrders(JSON.parse(savedOrders)); } catch (e) {}
@@ -54,42 +55,49 @@ function App() {
     if (savedSettings) try { setSettings(prev => ({ ...prev, ...JSON.parse(savedSettings) })); } catch (e) {}
   }, []);
 
+  // Guardar datos locales automáticamente
   useEffect(() => { localStorage.setItem('taller_orders', JSON.stringify(orders)); }, [orders]);
   useEffect(() => { localStorage.setItem('taller_expenses', JSON.stringify(expenses)); }, [expenses]);
   useEffect(() => { localStorage.setItem('taller_appointments', JSON.stringify(appointments)); }, [appointments]);
   useEffect(() => { localStorage.setItem('taller_winners', JSON.stringify(raffleWinners)); }, [raffleWinners]);
   useEffect(() => { localStorage.setItem('taller_settings', JSON.stringify(settings)); }, [settings]);
 
+  // --- LOGICA DE NUBE (CORREGIDA) ---
+
   const pushToCloud = async () => {
     if (!settings.syncCode) {
-      alert("Genera un código en Configuración primero.");
+      alert("⚠️ Primero debes generar un código en la pestaña de Configuración (icono de engranaje).");
       return;
     }
+    
     setIsSyncing(true);
     try {
       const payload = {
-        name: `GM_DATA_${settings.syncCode}`,
-        data: {
-          orders,
-          expenses,
-          appointments,
-          raffleWinners,
-          settings: { ...settings, lastSync: new Date().toLocaleString() }
-        }
+        orders,
+        expenses,
+        appointments,
+        raffleWinners,
+        settings: { ...settings, lastSync: new Date().toLocaleString() }
       };
-      const response = await fetch(`${CLOUD_API}/${settings.syncCode}`, {
+
+      const response = await fetch(`${CLOUD_API_BASE}/${settings.syncCode}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(payload)
       });
+
       if (response.ok) {
         setSettings(prev => ({ ...prev, lastSync: new Date().toLocaleString() }));
-        alert("¡Datos subidos a la nube exitosamente!");
+        alert("✅ ¡Sincronización Exitosa! Tus datos están seguros en la nube.");
       } else {
-        throw new Error();
+        const errorData = await response.text();
+        console.error("Cloud Error:", errorData);
+        alert("❌ Error del servidor al subir. Es posible que el código haya expirado o los datos sean muy pesados.");
       }
     } catch (error) {
-      alert("Error al subir datos. Intente nuevamente.");
+      alert("❌ Error de conexión. Revisa tu internet.");
     } finally {
       setIsSyncing(false);
     }
@@ -97,29 +105,30 @@ function App() {
 
   const pullFromCloud = async () => {
     if (!settings.syncCode) {
-      alert("Ingrese su código de sincronización.");
+      alert("⚠️ Ingresa tu código de taller en Configuración.");
       return;
     }
-    if (!window.confirm("¿Descargar datos? Se borrará lo actual en este equipo.")) return;
+
+    if (!window.confirm("⚠️ ¿Bajar datos de la nube? Esto reemplazará lo que tienes en este equipo por la versión guardada online.")) return;
+
     setIsSyncing(true);
     try {
-      const response = await fetch(`${CLOUD_API}/${settings.syncCode}`);
+      const response = await fetch(`${CLOUD_API_BASE}/${settings.syncCode}`);
       if (response.ok) {
-        const result = await response.json();
-        const data = result.data;
+        const data = await response.json();
         if (data) {
           if (data.orders) setOrders(data.orders);
           if (data.expenses) setExpenses(data.expenses);
           if (data.appointments) setAppointments(data.appointments);
           if (data.raffleWinners) setRaffleWinners(data.raffleWinners);
           if (data.settings) setSettings(data.settings);
-          alert("¡Datos descargados con éxito!");
+          alert("✅ ¡Datos restaurados correctamente desde la nube!");
         }
       } else {
-        alert("Código no válido.");
+        alert("❌ Código no válido o no se encontraron datos asociados.");
       }
     } catch (error) {
-      alert("Error al conectar con la nube.");
+      alert("❌ Error al conectar con la nube.");
     } finally {
       setIsSyncing(false);
     }
@@ -128,31 +137,42 @@ function App() {
   const generateNewCloudCode = async () => {
     setIsSyncing(true);
     try {
-      const payload = {
-        name: "GM_SYNC_INITIAL",
-        data: { orders: [], expenses: [], appointments: [], raffleWinners: [], settings }
+      const payload = { 
+        orders: [], 
+        expenses: [], 
+        appointments: [], 
+        raffleWinners: [], 
+        settings: { ...settings, syncCode: "" } 
       };
-      const response = await fetch(CLOUD_API, {
+
+      const response = await fetch(CLOUD_API_BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      
       if (response.ok) {
         const result = await response.json();
-        const newCode = result.id;
+        // El API de jsonstorage devuelve la URI completa: https://.../v1/json/ID
+        const uri = result.uri;
+        const newCode = uri.split('/').pop();
+        
         if (newCode) {
           setSettings(prev => ({ ...prev, syncCode: newCode }));
-          alert(`¡Código Nuevo: ${newCode}`);
+          alert(`✅ ¡CÓDIGO GENERADO CON ÉXITO!\n\nTu código es: ${newCode}\n\nAnótalo para conectar otros dispositivos.`);
         }
       } else {
-        throw new Error();
+        throw new Error("Server response not ok");
       }
     } catch (error) {
-      alert("Error de conexión. Intente de nuevo.");
+      console.error(error);
+      alert("❌ Error al generar el código. Intenta de nuevo en unos segundos.");
     } finally {
       setIsSyncing(false);
     }
   };
+
+  // --- MANEJO DE VISTAS Y DATOS ---
 
   const handleCreateOt = (newOt: WorkOrder) => {
     const today = new Date().toISOString().split('T')[0];
@@ -167,7 +187,7 @@ function App() {
   };
 
   const handleDeleteOt = (id: string) => {
-    if (window.confirm('¿Eliminar esta OT?')) setOrders(orders.filter(o => o.id !== id));
+    if (window.confirm('¿Eliminar esta OT permanentemente?')) setOrders(orders.filter(o => o.id !== id));
   };
 
   const handleEditOt = (id: string) => {
@@ -191,7 +211,7 @@ function App() {
   };
 
   const handleDismissMaintenance = (otId: string) => {
-    if(window.confirm("¿Confirmas contacto?")) {
+    if(window.confirm("¿Confirmas que ya contactaste al cliente?")) {
       setOrders(orders.map(o => o.id === otId ? { ...o, maintenanceAlertDismissed: true } : o));
     }
   };
@@ -206,13 +226,13 @@ function App() {
 
   const handleAddAppointment = (apt: Appointment) => setAppointments(prev => [...prev, apt]);
   const handleUpdateAppointment = (updApt: Appointment) => setAppointments(prev => prev.map(a => a.id === updApt.id ? updApt : a));
-  const handleDeleteAppointment = (id: string) => window.confirm("¿Eliminar?") && setAppointments(prev => prev.filter(a => a.id !== id));
+  const handleDeleteAppointment = (id: string) => window.confirm("¿Eliminar cita?") && setAppointments(prev => prev.filter(a => a.id !== id));
 
   const handleRegisterWinner = (winner: RaffleWinner) => setRaffleWinners(prev => [winner, ...prev]);
   const handleUpdateWinnerStatus = (id: string, isRedeemed: boolean) => {
     setRaffleWinners(prev => prev.map(w => w.id === id ? { ...w, isRedeemed, redemptionDate: isRedeemed ? new Date().toISOString().split('T')[0] : undefined } : w));
   };
-  const handleDeleteWinner = (id: string) => window.confirm("¿Borrar?") && setRaffleWinners(prev => prev.filter(w => w.id !== id));
+  const handleDeleteWinner = (id: string) => window.confirm("¿Borrar ganador?") && setRaffleWinners(prev => prev.filter(w => w.id !== id));
 
   const handleRestoreData = (file: File) => {
     const reader = new FileReader();
@@ -224,8 +244,8 @@ function App() {
         if (data.appointments) setAppointments(data.appointments);
         if (data.winners) setRaffleWinners(data.winners);
         if (data.settings) setSettings(data.settings);
-        alert('Base de datos restaurada.');
-      } catch (e) { alert('Error al leer el archivo.'); }
+        alert('✅ Base de datos restaurada con éxito.');
+      } catch (e) { alert('❌ Error al leer el archivo JSON.'); }
     };
     reader.readAsText(file);
   };
