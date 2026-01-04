@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Save, Upload, Building, Phone, Mail, FileText, Image as ImageIcon, Trash2, Cloud, Key, RefreshCw, Loader2, Info } from 'lucide-react';
+import { Save, Upload, Building, Phone, Mail, FileText, Image as ImageIcon, Trash2, Cloud, Key, RefreshCw, Loader2, Info, CheckCircle } from 'lucide-react';
 import { WorkshopSettings } from '../types';
 
 interface SettingsProps {
@@ -35,51 +35,65 @@ export const Settings: React.FC<SettingsProps> = ({ settings, onSave, onGenerate
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
-    alert('Configuración guardada exitosamente.');
+    alert('✅ Configuración guardada en este equipo.');
   };
 
   return (
     <div className="max-w-2xl mx-auto pb-20 animate-fade-in">
       <div className="flex items-center gap-3 mb-6">
         <Building className="w-8 h-8 text-blue-600" />
-        <h2 className="text-2xl font-bold text-gray-800">Configuración del Taller</h2>
+        <h2 className="text-2xl font-bold text-gray-800">Configuración</h2>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         
-        {/* NUBE CONFIG */}
-        <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100 shadow-sm">
+        {/* NUBE CONFIG REFORZADA */}
+        <div className="bg-white p-6 rounded-xl border-2 border-indigo-200 shadow-md">
            <h3 className="text-indigo-900 font-bold mb-4 flex items-center gap-2">
-              <Cloud className="w-5 h-5" /> Configuración de Nube (Sincronización)
+              <Cloud className="w-5 h-5 text-indigo-600" /> Sincronización en la Nube
            </h3>
-           <p className="text-sm text-indigo-700 mb-4">
-              Usa un código para sincronizar tus datos entre múltiples dispositivos (PC, iPhone, Tablet).
-           </p>
-           <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                 <Key className="absolute left-3 top-2.5 h-4 w-4 text-indigo-400" />
-                 <input 
-                    type="text" 
-                    name="syncCode"
-                    value={formData.syncCode || ''}
-                    onChange={handleChange}
-                    placeholder="Tu Código de Taller..."
-                    className="pl-9 w-full rounded-md border-indigo-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border bg-white font-mono"
-                 />
+           
+           <div className="space-y-4">
+              <div className="bg-indigo-50 p-4 rounded-lg">
+                  <label className="block text-sm font-bold text-indigo-800 mb-2">Tu Código de Sincronización</label>
+                  <div className="flex gap-2">
+                      <div className="relative flex-1">
+                          <Key className="absolute left-3 top-2.5 h-4 w-4 text-indigo-400" />
+                          <input 
+                            type="text" 
+                            name="syncCode"
+                            value={formData.syncCode || ''}
+                            onChange={handleChange}
+                            placeholder="Ej: GARCIA2024"
+                            className="pl-9 w-full rounded-md border-indigo-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border bg-white font-mono font-bold"
+                          />
+                      </div>
+                      <button 
+                        type="submit"
+                        className="bg-indigo-600 text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 hover:bg-indigo-700 shadow-sm"
+                      >
+                        <CheckCircle className="w-4 h-4" /> Conectar
+                      </button>
+                  </div>
+                  <p className="text-[11px] text-indigo-600 mt-2">
+                    💡 <strong>Para sincronizar:</strong> Escribe el MISMO código en tu computador y en tu celular, luego dale a "Conectar" en ambos.
+                  </p>
               </div>
+
+              <div className="flex items-center gap-2 text-gray-400 py-2">
+                  <div className="flex-1 h-px bg-gray-200"></div>
+                  <span className="text-xs font-bold uppercase">ó genera uno nuevo</span>
+                  <div className="flex-1 h-px bg-gray-200"></div>
+              </div>
+
               <button 
                 type="button"
                 onClick={onGenerateCode}
-                disabled={isSyncing}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-md font-bold text-sm flex items-center justify-center gap-2 hover:bg-indigo-700 transition disabled:opacity-50"
+                className="w-full bg-white text-indigo-600 border border-indigo-300 px-4 py-2 rounded-md font-bold text-sm flex items-center justify-center gap-2 hover:bg-indigo-50 transition"
               >
-                {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                Generar Nuevo
+                <RefreshCw className="w-4 h-4" /> Crear Código Aleatorio
               </button>
            </div>
-           <p className="text-[10px] text-indigo-500 mt-2 italic">
-              * Si ya tienes un código, escríbelo arriba. Si el botón "Generar" falla, intenta de nuevo en 1 minuto.
-           </p>
         </div>
 
         {/* IPHONE HELP */}
