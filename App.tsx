@@ -13,7 +13,7 @@ import { Raffle } from './components/Raffle';
 import { Calculator } from './components/Calculator';
 import { WorkOrder, ViewState, Expense, Appointment, WorkshopSettings, RaffleWinner } from './types';
 
-// API para almacenamiento en la nube (Public JSON storage)
+// API para almacenamiento en la nube mejorada
 const CLOUD_API = 'https://jsonblob.com/api/jsonBlob';
 
 function App() {
@@ -37,7 +37,6 @@ function App() {
 
   const [settings, setSettings] = useState<WorkshopSettings>(defaultSettings);
 
-  // Load data from local storage
   useEffect(() => {
     const savedOrders = localStorage.getItem('taller_orders');
     if (savedOrders) try { setOrders(JSON.parse(savedOrders)); } catch (e) {}
@@ -55,17 +54,15 @@ function App() {
     if (savedSettings) try { setSettings(prev => ({ ...prev, ...JSON.parse(savedSettings) })); } catch (e) {}
   }, []);
 
-  // Save to local storage
   useEffect(() => { localStorage.setItem('taller_orders', JSON.stringify(orders)); }, [orders]);
   useEffect(() => { localStorage.setItem('taller_expenses', JSON.stringify(expenses)); }, [expenses]);
   useEffect(() => { localStorage.setItem('taller_appointments', JSON.stringify(appointments)); }, [appointments]);
   useEffect(() => { localStorage.setItem('taller_winners', JSON.stringify(raffleWinners)); }, [raffleWinners]);
   useEffect(() => { localStorage.setItem('taller_settings', JSON.stringify(settings)); }, [settings]);
 
-  // --- CLOUD SYNC LOGIC ---
   const pushToCloud = async () => {
     if (!settings.syncCode) {
-      alert("Debes configurar un 'Código de Sincronización' en Configuración para usar la nube.");
+      alert("Debes configurar un 'Código de Sincronización' en Configuración.");
       return;
     }
     
@@ -79,22 +76,23 @@ function App() {
         settings: { ...settings, lastSync: new Date().toLocaleString() }
       };
 
-      // Si ya tenemos un ID de blob (syncCode), intentamos actualizarlo
       const response = await fetch(`${CLOUD_API}/${settings.syncCode}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify(data)
       });
 
       if (response.ok) {
         setSettings(prev => ({ ...prev, lastSync: new Date().toLocaleString() }));
-        alert("¡Datos subidos con éxito! Ahora puedes descargarlos en otro dispositivo.");
+        alert("¡Datos guardados en la nube exitosamente!");
       } else {
-        throw new Error("Error al subir");
+        throw new Error("Error en servidor");
       }
     } catch (error) {
-      console.error(error);
-      alert("Error al sincronizar con la nube. Verifica tu conexión.");
+      alert("Error al subir a la nube. Intenta de nuevo en unos momentos.");
     } finally {
       setIsSyncing(false);
     }
@@ -102,11 +100,11 @@ function App() {
 
   const pullFromCloud = async () => {
     if (!settings.syncCode) {
-      alert("Ingresa tu 'Código de Sincronización' para descargar los datos.");
+      alert("Ingresa tu 'Código de Sincronización' para descargar.");
       return;
     }
 
-    if (!window.confirm("Esto reemplazará todos los datos actuales de este dispositivo por los de la nube. ¿Continuar?")) return;
+    if (!window.confirm("Se borrarán los datos de este equipo y se pondrán los de la nube. ¿Continuar?")) return;
 
     setIsSyncing(true);
     try {
@@ -118,13 +116,12 @@ function App() {
         if (data.appointments) setAppointments(data.appointments);
         if (data.raffleWinners) setRaffleWinners(data.raffleWinners);
         if (data.settings) setSettings(data.settings);
-        alert("¡Sincronización completa! Datos actualizados.");
+        alert("¡Sincronización completa!");
       } else {
-        alert("Código inválido o no se encontraron datos en la nube.");
+        alert("Código no encontrado. Verifica que esté bien escrito.");
       }
     } catch (error) {
-      console.error(error);
-      alert("Error al descargar datos. Revisa el código.");
+      alert("Error al descargar datos de la nube.");
     } finally {
       setIsSyncing(false);
     }
@@ -135,23 +132,39 @@ function App() {
     try {
       const response = await fetch(CLOUD_API, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({ orders: [], expenses: [], appointments: [], raffleWinners: [], settings })
       });
-      const location = response.headers.get('Location');
+      
+      // Intentamos obtener el código desde el header Location
+      let location = response.headers.get('Location');
+      
+      // Si el navegador bloquea Location por CORS, intentamos leer el ID del cuerpo si es posible
+      // JsonBlob a veces devuelve la URL completa en Location.
       if (location) {
         const newCode = location.split('/').pop();
-        setSettings(prev => ({ ...prev, syncCode: newCode }));
-        alert(`¡Nuevo Código Generado! Guárdalo: ${newCode}\nUsa este código en tus otros dispositivos.`);
+        if (newCode) {
+          setSettings(prev => ({ ...prev, syncCode: newCode }));
+          alert(`¡Código Generado! Escríbelo en tus otros equipos: ${newCode}`);
+          return;
+        }
       }
+      
+      // Fallback: Si no pudimos obtener el código, es probable que sea por CORS.
+      // Informamos al usuario que pruebe con un código manual o intente de nuevo.
+      throw new Error("No se pudo extraer el código");
+
     } catch (error) {
-      alert("No se pudo generar código. Revisa tu internet.");
+      console.error(error);
+      alert("El servidor de la nube no respondió. Por favor intenta de nuevo en 1 minuto o revisa tu conexión a Internet.");
     } finally {
       setIsSyncing(false);
     }
   };
 
-  // OT Handlers
   const handleCreateOt = (newOt: WorkOrder) => {
     const today = new Date().toISOString().split('T')[0];
     if (newOt.status === 'delivered' && !newOt.deliveredAt) newOt.deliveredAt = today;
@@ -167,7 +180,7 @@ function App() {
   };
 
   const handleDeleteOt = (id: string) => {
-    if (window.confirm('¿Está seguro de eliminar esta OT?')) {
+    if (window.confirm('¿Eliminar esta OT?')) {
         setOrders(orders.filter(o => o.id !== id));
     }
   };

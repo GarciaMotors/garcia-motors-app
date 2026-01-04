@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Save, Upload, Building, Phone, Mail, FileText, Image as ImageIcon, Trash2, Cloud, Key, RefreshCw, Loader2 } from 'lucide-react';
+import { Save, Upload, Building, Phone, Mail, FileText, Image as ImageIcon, Trash2, Cloud, Key, RefreshCw, Loader2, Info } from 'lucide-react';
 import { WorkshopSettings } from '../types';
 
 interface SettingsProps {
@@ -78,8 +78,17 @@ export const Settings: React.FC<SettingsProps> = ({ settings, onSave, onGenerate
               </button>
            </div>
            <p className="text-[10px] text-indigo-500 mt-2 italic">
-              * Si ya tienes un código, escríbelo arriba. Si es la primera vez, presiona "Generar Nuevo".
+              * Si ya tienes un código, escríbelo arriba. Si el botón "Generar" falla, intenta de nuevo en 1 minuto.
            </p>
+        </div>
+
+        {/* IPHONE HELP */}
+        <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 flex items-start gap-3">
+            <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div className="text-sm text-blue-800">
+                <p className="font-bold mb-1">¿Cómo instalar en iPhone?</p>
+                <p>En Safari, toca el botón <strong>Compartir</strong> (cuadrado con flecha) y luego selecciona <strong>"Agregar a inicio"</strong>.</p>
+            </div>
         </div>
 
         {/* Logo Section */}

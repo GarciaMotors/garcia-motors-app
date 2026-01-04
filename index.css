@@ -1,2 +1,6 @@
 
-/* Estilos globales manejados por Tailwind CDN */
+/* Estilos globales manejados por Tailwind CDN en index.html */
+body {
+  margin: 0;
+  padding: 0;
+}
