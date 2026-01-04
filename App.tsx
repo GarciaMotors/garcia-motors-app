@@ -13,8 +13,8 @@ import { Raffle } from './components/Raffle';
 import { Calculator } from './components/Calculator';
 import { WorkOrder, ViewState, Expense, Appointment, WorkshopSettings, RaffleWinner } from './types';
 
-// Nuevo proveedor de nube más estable
-const CLOUD_API = 'https://api.npoint.io/documents';
+// Proveedor de nube profesional y estable
+const CLOUD_API = 'https://jsonblob.com/api/jsonBlob';
 
 function App() {
   const [view, setView] = useState<ViewState>('dashboard');
@@ -62,36 +62,37 @@ function App() {
 
   const pushToCloud = async () => {
     if (!settings.syncCode) {
-      alert("Debes configurar o generar un 'Código de Sincronización' primero.");
+      alert("Debes generar un código primero en la pestaña de Configuración (engranaje).");
       return;
     }
     
     setIsSyncing(true);
     try {
       const payload = {
-        contents: {
-          orders,
-          expenses,
-          appointments,
-          raffleWinners,
-          settings: { ...settings, lastSync: new Date().toLocaleString() }
-        }
+        orders,
+        expenses,
+        appointments,
+        raffleWinners,
+        settings: { ...settings, lastSync: new Date().toLocaleString() }
       };
 
       const response = await fetch(`${CLOUD_API}/${settings.syncCode}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify(payload)
       });
 
       if (response.ok) {
         setSettings(prev => ({ ...prev, lastSync: new Date().toLocaleString() }));
-        alert("¡Datos guardados en la nube! Ya puedes verlos en tu otro dispositivo.");
+        alert("¡Datos guardados con éxito! Ahora puedes abrir la app en otro equipo y usar el botón 'Bajar Datos'.");
       } else {
         throw new Error();
       }
     } catch (error) {
-      alert("Error al subir a la nube. Revisa tu internet o intenta de nuevo en 1 minuto.");
+      alert("Error al subir. Revisa que tu internet sea estable e intenta de nuevo.");
     } finally {
       setIsSyncing(false);
     }
@@ -99,29 +100,30 @@ function App() {
 
   const pullFromCloud = async () => {
     if (!settings.syncCode) {
-      alert("Ingresa tu código para bajar los datos.");
+      alert("Ingresa tu código en configuración para bajar los datos.");
       return;
     }
 
-    if (!window.confirm("Se borrarán los datos de este equipo y se pondrán los de la nube. ¿Continuar?")) return;
+    if (!window.confirm("Atención: Esto reemplazará los datos de este equipo por los que están en la nube. ¿Deseas continuar?")) return;
 
     setIsSyncing(true);
     try {
-      const response = await fetch(`${CLOUD_API}/${settings.syncCode}`);
+      const response = await fetch(`${CLOUD_API}/${settings.syncCode}`, {
+        headers: { 'Accept': 'application/json' }
+      });
       if (response.ok) {
-        const result = await response.json();
-        const data = result.contents;
+        const data = await response.json();
         if (data.orders) setOrders(data.orders);
         if (data.expenses) setExpenses(data.expenses);
         if (data.appointments) setAppointments(data.appointments);
         if (data.raffleWinners) setRaffleWinners(data.raffleWinners);
         if (data.settings) setSettings(data.settings);
-        alert("¡Sincronización Exitosa!");
+        alert("¡Sincronización Exitosa! Datos actualizados.");
       } else {
-        alert("Código no encontrado. Revisa que esté bien escrito.");
+        alert("El código no existe o expiró. Verifica que sea el correcto.");
       }
     } catch (error) {
-      alert("Error al descargar datos. Revisa tu internet.");
+      alert("Error al conectar con la nube. Revisa tu conexión.");
     } finally {
       setIsSyncing(false);
     }
@@ -130,28 +132,31 @@ function App() {
   const generateNewCloudCode = async () => {
     setIsSyncing(true);
     try {
-      const payload = {
-        contents: { orders: [], expenses: [], appointments: [], raffleWinners: [], settings }
-      };
+      const payload = { orders: [], expenses: [], appointments: [], raffleWinners: [], settings };
 
       const response = await fetch(CLOUD_API, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify(payload)
       });
       
       if (response.ok) {
-        const result = await response.json();
-        const newCode = result.key;
-        if (newCode) {
-          setSettings(prev => ({ ...prev, syncCode: newCode }));
-          alert(`¡Código Nuevo Creado! Úsalo en tus otros equipos: ${newCode}`);
+        const location = response.headers.get('Location');
+        if (location) {
+          const newCode = location.split('/').pop();
+          if (newCode) {
+            setSettings(prev => ({ ...prev, syncCode: newCode }));
+            alert(`¡Código Nuevo Creado! Anótalo bien: ${newCode}`);
+          }
         }
       } else {
         throw new Error();
       }
     } catch (error) {
-      alert("No se pudo generar código automáticamente. Por favor intenta de nuevo en unos segundos.");
+      alert("Error de conexión. Por favor, intenta presionar el botón de nuevo en unos segundos.");
     } finally {
       setIsSyncing(false);
     }
