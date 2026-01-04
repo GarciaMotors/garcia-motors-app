@@ -79,7 +79,7 @@ function App() {
       };
 
       const response = await fetch(`${CLOUD_API}/${settings.syncCode}`, {
-        method: 'POST', // npoint usa POST para actualizar si el ID ya existe en la URL
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
@@ -91,7 +91,7 @@ function App() {
         throw new Error();
       }
     } catch (error) {
-      alert("Error al subir. Si tu código es nuevo, intenta darle a 'Generar Nuevo' primero.");
+      alert("Error al subir a la nube. Revisa tu internet o intenta de nuevo en 1 minuto.");
     } finally {
       setIsSyncing(false);
     }
@@ -151,7 +151,7 @@ function App() {
         throw new Error();
       }
     } catch (error) {
-      alert("No se pudo generar código automáticamente. Por favor intenta de nuevo.");
+      alert("No se pudo generar código automáticamente. Por favor intenta de nuevo en unos segundos.");
     } finally {
       setIsSyncing(false);
     }

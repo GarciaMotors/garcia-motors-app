@@ -130,7 +130,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <Apple className="w-4 h-4" />
               ¿Quieres esta app en tu pantalla de inicio?
           </div>
-          <p className="text-[10px] text-blue-600">Safari > Compartir > Agregar a inicio</p>
+          <p className="text-[10px] text-blue-600">
+            {"Safari > Compartir > Agregar a inicio"}
+          </p>
       </div>
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
