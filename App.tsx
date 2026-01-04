@@ -13,8 +13,8 @@ import { Raffle } from './components/Raffle';
 import { Calculator } from './components/Calculator';
 import { WorkOrder, ViewState, Expense, Appointment, WorkshopSettings, RaffleWinner } from './types';
 
-// PROVEEDOR PROFESIONAL (Soporta nombres personalizados)
-const CLOUD_API_BASE = 'https://api.restful-api.dev/objects';
+// PROVEEDOR ULTRA-ESTABLE
+const CLOUD_API_BASE = 'https://api.npoint.io';
 
 function App() {
   const [view, setView] = useState<ViewState>('dashboard');
@@ -56,67 +56,40 @@ function App() {
   useEffect(() => { localStorage.setItem('taller_winners', JSON.stringify(raffleWinners)); }, [raffleWinners]);
   useEffect(() => { localStorage.setItem('taller_settings', JSON.stringify(settings)); }, [settings]);
 
-  // --- LÓGICA DE NUBE REFORZADA ---
-
-  // Función para buscar el ID interno de un código (ej: Garcia2024)
-  const findCloudId = async (code: string) => {
-    try {
-      const response = await fetch(CLOUD_API_BASE);
-      if (!response.ok) return null;
-      const objects = await response.json();
-      // Buscamos un objeto que tenga el nombre que el usuario eligió
-      const match = objects.find((obj: any) => obj.name === `GM_DATA_${code}`);
-      return match ? match.id : null;
-    } catch (e) { return null; }
-  };
+  // --- LÓGICA DE NUBE DEFINITIVA ---
 
   const pushToCloud = async () => {
     const code = settings.syncCode?.trim();
-    if (!code || code.length < 4) {
-      alert("⚠️ Escribe un código de al menos 4 letras en Configuración (ej: Garcia2024).");
+    if (!code) {
+      alert("⚠️ Error: No tienes un código de nube. Ve a Configuración y genera uno.");
       return;
     }
     
     setIsSyncing(true);
     try {
       const payload = {
-        name: `GM_DATA_${code}`,
-        data: {
-          orders,
-          expenses,
-          appointments,
-          raffleWinners,
-          settings: { ...settings, lastSync: new Date().toLocaleString() }
-        }
+        orders,
+        expenses,
+        appointments,
+        raffleWinners,
+        settings: { ...settings, lastSync: new Date().toLocaleString() }
       };
 
-      const existingId = await findCloudId(code);
-      let response;
-
-      if (existingId) {
-        // Si ya existe, actualizamos ese ID
-        response = await fetch(`${CLOUD_API_BASE}/${existingId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-      } else {
-        // Si es nuevo, lo creamos
-        response = await fetch(CLOUD_API_BASE, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-      }
+      // Actualizamos directamente el ID en NPoint
+      const response = await fetch(`${CLOUD_API_BASE}/${code}`, {
+        method: 'POST', // NPoint usa POST para sobrescribir o crear
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
       if (response.ok) {
         setSettings(prev => ({ ...prev, lastSync: new Date().toLocaleString() }));
-        alert("✅ Datos guardados en la nube con éxito.");
+        alert("✅ ¡Éxito! Datos subidos a la nube. Ya puedes bajarlos en tu otro equipo.");
       } else {
-        throw new Error("Error en servidor");
+        alert("❌ Error al subir. Es posible que el código sea inválido.");
       }
     } catch (error) {
-      alert("❌ Error de conexión. Revisa tu internet o intenta más tarde.");
+      alert("❌ Sin conexión a internet.");
     } finally {
       setIsSyncing(false);
     }
@@ -124,44 +97,60 @@ function App() {
 
   const pullFromCloud = async () => {
     const code = settings.syncCode?.trim();
-    if (!code) { alert("⚠️ Escribe tu código en Configuración."); return; }
-    if (!window.confirm("⚠️ ¿Bajar datos? Se borrará lo que tienes en este equipo para poner lo de la nube.")) return;
+    if (!code) { alert("⚠️ Primero pega el código de sincronización en Configuración."); return; }
+    if (!window.confirm("⚠️ ¿Bajar datos? Esto borrará lo que tienes en este equipo y pondrá lo que hay en la nube.")) return;
 
     setIsSyncing(true);
     try {
-      const existingId = await findCloudId(code);
-      if (!existingId) {
-        alert("❌ No hay datos en la nube con ese código. Primero dale a 'Subir' desde el equipo que tiene la información.");
-        return;
-      }
-
-      const response = await fetch(`${CLOUD_API_BASE}/${existingId}`);
+      const response = await fetch(`${CLOUD_API_BASE}/${code}`);
       if (response.ok) {
-        const result = await response.json();
-        const cloud = result.data;
-        if (cloud) {
-          if (cloud.orders) setOrders(cloud.orders);
-          if (cloud.expenses) setExpenses(cloud.expenses);
-          if (cloud.appointments) setAppointments(cloud.appointments);
-          if (cloud.raffleWinners) setRaffleWinners(cloud.raffleWinners);
-          if (cloud.settings) setSettings({ ...cloud.settings, syncCode: code });
+        const data = await response.json();
+        if (data) {
+          if (data.orders) setOrders(data.orders);
+          if (data.expenses) setExpenses(data.expenses);
+          if (data.appointments) setAppointments(data.appointments);
+          if (data.raffleWinners) setRaffleWinners(data.raffleWinners);
+          if (data.settings) setSettings({ ...data.settings, syncCode: code });
           alert("✅ ¡Sincronizado! Datos descargados correctamente.");
         }
+      } else {
+        alert("❌ No se encontraron datos para este código. Asegúrate de haber 'Subido' los datos primero desde el otro equipo.");
       }
     } catch (error) {
-      alert("❌ Error al descargar. Revisa tu conexión.");
+      alert("❌ Error al conectar con la nube.");
     } finally {
       setIsSyncing(false);
     }
   };
 
-  const generateNewCloudCode = () => {
-    const randomCode = 'GM-' + Math.random().toString(36).substring(2, 7).toUpperCase();
-    setSettings(prev => ({ ...prev, syncCode: randomCode }));
-    alert(`✅ Código generado: ${randomCode}\n\nEscríbelo en tu otro equipo para conectar.`);
+  const generateNewCloudCode = async () => {
+    if (!window.confirm("¿Deseas crear un nuevo código? Esto te dará una 'carpeta' limpia en la nube.")) return;
+    
+    setIsSyncing(true);
+    try {
+      // Creamos un bin vacío en NPoint para obtener un ID real
+      const response = await fetch(CLOUD_API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initialized: true })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        const newId = result.id;
+        if (newId) {
+          setSettings(prev => ({ ...prev, syncCode: newId }));
+          alert(`✅ ¡CÓDIGO GENERADO!\n\nTu ID es: ${newId}\n\nCópialo y pégalo en tu otro celular o PC.`);
+        }
+      }
+    } catch (error) {
+      alert("❌ Error al generar código. Revisa tu internet.");
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
-  // --- RESTO DE FUNCIONES (SIN CAMBIOS) ---
+  // --- RESTO DE FUNCIONES ---
   const handleCreateOt = (newOt: WorkOrder) => {
     const today = new Date().toISOString().split('T')[0];
     if (newOt.status === 'delivered' && !newOt.deliveredAt) newOt.deliveredAt = today;
