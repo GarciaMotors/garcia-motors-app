@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { Wrench, PlusCircle, List, LayoutDashboard, Wallet, PackageSearch, CalendarDays, Settings, Trophy, Calculator } from 'lucide-react';
+import { Wrench, PlusCircle, List, LayoutDashboard, Wallet, PackageSearch, CalendarDays, Settings, Trophy, Calculator, FileText } from 'lucide-react';
 import { ViewState } from '../types';
 
 interface LayoutProps {
@@ -51,6 +52,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, setView, currentView }
               <button onClick={() => setView('list')} className={navItemClass('list')}>
                 <List className="w-4 h-4 shrink-0" />
                 <span className="hidden lg:inline">Listado</span>
+              </button>
+
+              <button onClick={() => setView('f29')} className={navItemClass('f29')}>
+                <FileText className="w-4 h-4 shrink-0" />
+                <span className="hidden lg:inline">F29</span>
               </button>
 
               <button onClick={() => setView('raffle')} className={navItemClass('raffle')}>

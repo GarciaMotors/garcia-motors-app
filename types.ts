@@ -1,5 +1,5 @@
 
-export type ItemType = 'part' | 'labor' | 'expense';
+export type ItemType = 'part' | 'labor';
 export type DocumentType = 'factura' | 'boleta' | 'cotizacion';
 export type ExpenseDocType = 'factura' | 'boleta' | 'cotizacion';
 export type ExpenseCategory = 'general' | 'insumos';
@@ -15,7 +15,9 @@ export interface WorkItem {
   purchaseDocType?: DocumentType;
   buyer?: string;
   provider?: string;
-  isReimbursed?: boolean;
+  isBuyerPaid?: boolean;
+  paymentDate?: string; 
+  isReimbursed?: boolean; 
   reimbursementDate?: string;
   discount?: number; 
   discountType?: 'amount' | 'percent';
@@ -59,8 +61,8 @@ export interface WorkOrder {
   description: string;
   items: WorkItem[];
   notes?: string;
-  clientProvidesParts?: boolean;
-  isMaintenance?: boolean;
+  clientProvidesParts?: boolean; 
+  isMaintenance?: boolean; 
   maintenanceIntervalMonths?: number;
   nextMaintenanceDate?: string;
   maintenanceAlertDismissed?: boolean;
@@ -105,8 +107,6 @@ export interface WorkshopSettings {
   phone: string;
   email: string;
   logoUrl?: string;
-  syncCode?: string; // Código para sincronización en la nube
-  lastSync?: string; // Fecha de última sincronización exitosa
 }
 
 export interface RaffleWinner {
@@ -121,4 +121,4 @@ export interface RaffleWinner {
   redemptionDate?: string;
 }
 
-export type ViewState = 'dashboard' | 'list' | 'create' | 'details' | 'expenses' | 'parts' | 'agenda' | 'settings' | 'raffle' | 'calculator';
+export type ViewState = 'dashboard' | 'list' | 'create' | 'details' | 'expenses' | 'parts' | 'agenda' | 'settings' | 'raffle' | 'calculator' | 'f29';
